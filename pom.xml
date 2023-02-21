@@ -11,6 +11,7 @@
     <modules>
         <module>amber</module>
         <module>bam-tools</module>
+        <module>bee</module>
         <module>cider</module>
         <module>cobalt</module>
         <module>compar</module>
