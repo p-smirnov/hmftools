@@ -60,6 +60,7 @@
 
         <amber.version>3.9</amber.version>
         <bam-tools.version>1.0</bam-tools.version>
+        <bee.version>0.1</bee.version>
         <cider.version>0.6</cider.version>
         <cobalt.version>1.14</cobalt.version>
         <compar.version>1.1</compar.version>
