@@ -23,6 +23,11 @@ public class BeeTrainParams
                description = "Path to the reference genome fasta file.")
     public String refGenomePath;
 
+    @Parameter(names = "-sage_bqr",
+               required = true,
+               description = "Path to the sage BQR tsv file.")
+    public String sageBqrPath;
+
     @Parameter(names = "-gc_profile",
                required = true,
                description = "Location of GC Profile")
@@ -33,6 +38,11 @@ public class BeeTrainParams
                description = "Path to the output directory. "
                        + "This directory will be created if it does not already exist.")
     public String outputDir;
+
+    @Parameter(names = "-min_umi_group_size",
+               required = true,
+               description = "Minimum size of umi group to be used.")
+    public int minUmiGroupSize = 4;
 
     @Parameter(names = "-threads",
                description = "Number of threads")

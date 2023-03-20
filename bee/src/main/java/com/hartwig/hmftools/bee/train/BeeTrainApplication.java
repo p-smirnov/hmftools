@@ -17,7 +17,6 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParametersDelegate;
 import com.beust.jcommander.UnixStyleUsageFormatter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.hartwig.hmftools.bee.BeeInputWriter;
 import com.hartwig.hmftools.bee.BeeUtils;
 import com.hartwig.hmftools.bee.RefGenomeCompare;
 import com.hartwig.hmftools.common.genome.gc.GCProfile;
@@ -89,9 +88,14 @@ public class BeeTrainApplication
 
         var beeInputWriter = new BeeInputWriter(mParams.outputDir, mParams.sampleId);
 
-        var refGenomeCompare = new RefGenomeCompare(new IndexedFastaSequenceFile(new File(mParams.refGenomePath)));
+        var refGenomeIndexedFasta = new IndexedFastaSequenceFile(new File(mParams.refGenomePath));
+        var refGenomeCompare = new RefGenomeCompare(refGenomeIndexedFasta);
 
-        try (var readHandler = new TruthSetReadHandler(beeInputWriter, gcProfileList, refGenomeCompare, mParams.readLength))
+        var bqrLogic = new BqrLogic(mParams.sageBqrPath, refGenomeIndexedFasta);
+
+        try (var readHandler = new TruthSetReadHandler(
+                beeInputWriter, gcProfileList, refGenomeCompare, bqrLogic,
+                mParams.readLength, mParams.minUmiGroupSize))
         {
             List<Future<?>> futures = new ArrayList<>();
 

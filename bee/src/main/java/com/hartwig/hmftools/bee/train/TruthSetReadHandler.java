@@ -4,10 +4,9 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Random;
 
 import com.hartwig.hmftools.bee.BeeInput;
-import com.hartwig.hmftools.bee.BeeInputWriter;
-import com.hartwig.hmftools.bee.BeeUtils;
 import com.hartwig.hmftools.bee.FragmentGCProfile;
 import com.hartwig.hmftools.bee.RefGenomeCompare;
 import com.hartwig.hmftools.common.aligner.AlignmentOperator;
@@ -17,6 +16,7 @@ import com.hartwig.hmftools.common.utils.sv.ChrBaseRegion;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
@@ -33,9 +33,13 @@ public class TruthSetReadHandler implements Closeable
 
     private final int mReadLength;
 
+    private final int mMinUmiGroupSize;
+
     private final FragmentGCProfile mFragmentGCProfile;
 
     private final RefGenomeCompare mRefGenomeCompare;
+
+    private final BqrLogic mBqrLogic;
 
     private final UmiReadGroupDatastore mUmiReadGroupDatastore = new UmiReadGroupDatastore();
 
@@ -44,15 +48,21 @@ public class TruthSetReadHandler implements Closeable
     // track which chromosome position we are up to
     private final ChromosomeProgress mChromosomeProgress = new ChromosomeProgress();
 
+    private final Random mRandom = new Random();
+
     public TruthSetReadHandler(BeeInputWriter beeInputWriter,
             final Collection<GCProfile> gcProfileList,
             RefGenomeCompare refGenomeCompare,
-            int readLength)
+            BqrLogic bqrLogic,
+            int readLength,
+            int minUmiGroupSize)
     {
         mBeeInputWriter = beeInputWriter;
         mReadLength = readLength;
+        mMinUmiGroupSize = minUmiGroupSize;
         mFragmentGCProfile = new FragmentGCProfile(gcProfileList, readLength);
         mRefGenomeCompare = refGenomeCompare;
+        mBqrLogic = bqrLogic;
     }
 
     @Override
@@ -66,16 +76,6 @@ public class TruthSetReadHandler implements Closeable
     // we create a data point for each read
     public void handleRead(SAMRecord record)
     {
-        if (record.getReadName().equals("A00260:406:H5MYKDSX3:1:2608:4544:8703:GCGCAATAG"))
-        {
-            sLogger.info(ReadCigarAligner.longDebugString(record));
-        }
-
-        if (record.getReadUnmappedFlag())
-        {
-
-        }
-
         if (record.getReferenceIndex().equals(-1))
         {
             // don't process read that are unmapped
@@ -112,10 +112,20 @@ public class TruthSetReadHandler implements Closeable
         }
 
         // TODO: what about hard clip?
-        int startPos = record.getAlignmentStart() - CigarUtils.leftSoftClipLength(record);
+        // start position is the aligned position of the read start
+        int read5PrimeReferencePos;
+
+        if (record.getReadNegativeStrandFlag())
+        {
+            read5PrimeReferencePos = record.getAlignmentEnd() + CigarUtils.rightSoftClipLength(record);
+        }
+        else
+        {
+            read5PrimeReferencePos = record.getAlignmentStart() - CigarUtils.leftSoftClipLength(record);
+        }
 
         UmiReadGroup umiGroup = mUmiReadGroupDatastore.getOrCreate(umi, record.getReferenceName(),
-                startPos, record.getFirstOfPairFlag());
+                read5PrimeReferencePos, record.getReadNegativeStrandFlag());
 
         if (isConsensusRead)
         {
@@ -142,14 +152,35 @@ public class TruthSetReadHandler implements Closeable
 
             for (UmiReadGroup g : completedUmiGroups)
             {
+                sLogger.info("completed group umi({}) num reads({})", g.umi, g.duplicateReads.size());
+
                 // check that it has consensus read
                 if (g.consensusRead == null)
                 {
-                    sLogger.error("consensus read for umi group(umi({}), aligned({}:{})) not found: ", g.umi, g.chromosome, g.alignmentStart);
+                    if (g.duplicateReads.size() > 1)
+                    {
+                        sLogger.error("consensus read for umi group(umi({}), aligned({}:{})) not found: ", g.umi, g.chromosome, g.read5PrimeReferencePos);
+
+                        for (SAMRecord r : g.duplicateReads)
+                        {
+                            sLogger.error("read: {}", r);
+                        }
+                    }
+
                     continue;
                 }
 
-                sLogger.info("completed group umi({}) num reads({})", g.umi, g.duplicateReads.size());
+                if (g.duplicateReads.size() < mMinUmiGroupSize)
+                {
+                    // not enough reads to be 100% sure of the consensus
+                    continue;
+                }
+
+                if (mRandom.nextInt(100) != 1)
+                {
+                    // only 1% of groups needed for now
+                    continue;
+                }
 
                 var cigarErrors = g.consensusRead.getCigar().isValid(g.consensusRead.getReadName(), 0);
 
@@ -171,14 +202,16 @@ public class TruthSetReadHandler implements Closeable
                     beeInput.isMateMapped = !dupRead.getMateUnmappedFlag();
                     beeInput.mapQuality = dupRead.getMappingQuality();
 
-                    beeInput.matchesRef = mRefGenomeCompare.getMatchRef(dupRead);
+                    beeInput.referenceGenomeBases = mRefGenomeCompare.getReferenceGenomeBases(dupRead);
+                    beeInput.bqrBaseQualities = mBqrLogic.calcBqrQualities(dupRead);
 
                     // for ML it is easier to learn the patterns by the direction a read is sequenced
                     if (dupRead.getReadNegativeStrandFlag())
                     {
                         beeInput.readString = SequenceUtil.reverseComplement(beeInput.readString);
                         beeInput.baseQualityString = StringUtils.reverse(beeInput.baseQualityString);
-                        ArrayUtils.reverse(beeInput.matchesRef);
+                        beeInput.referenceGenomeBases = StringUtils.reverse(beeInput.referenceGenomeBases);
+                        ArrayUtils.reverse(beeInput.bqrBaseQualities);
                     }
 
                     @Nullable
@@ -197,8 +230,7 @@ public class TruthSetReadHandler implements Closeable
 
                     beeInput.cigar = dupRead.getCigarString();
 
-                    beeInput.target = new int[dupRead.getReadLength()];
-
+                    beeInput.baseError = new boolean[dupRead.getReadLength()];
 
                     List<AlignmentOperator> alignOps = ReadCigarAligner.alignReads(dupRead, g.consensusRead);
 
@@ -210,16 +242,32 @@ public class TruthSetReadHandler implements Closeable
                         switch (op)
                         {
                             case MATCH:
-                                beeInput.target[i++] = 1;
+                                beeInput.baseError[i++] = false;
                                 break;
                             case MISMATCH:
                             case INSERTION:
-                                beeInput.target[i++] = 0;
+                                beeInput.baseError[i++] = true;
                                 break;
                             case DELETION:
                                 // do nothing for now
                                 break;
                         }
+                    }
+
+                    // deep debugging: log out the alignment to make sure we got it correct
+                    if (false)
+                    {
+                        AlignmentOperator.logAlignment(sLogger, Level.TRACE, dupRead.getReadString(),
+                                g.consensusRead.getReadString(), alignOps);
+
+                        var sb = new StringBuilder();
+
+                        for (var b : beeInput.baseError)
+                        {
+                            sb.append(b ? 1 : 0);
+                        }
+
+                        sLogger.trace("{}", sb);
                     }
 
                     try

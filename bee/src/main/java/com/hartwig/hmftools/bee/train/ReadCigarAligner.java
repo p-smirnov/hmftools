@@ -215,12 +215,13 @@ public class ReadCigarAligner
 
     public static String longDebugString(SAMRecord read)
     {
-        return String.format("%s cigar(%s) reversed?(%s) ummapped?(%s) proper paired?(%s) mate align(%s:%d) isize(%d)",
+        return String.format("%s cigar(%s) reversed?(%s) ummapped?(%s) proper paired?(%s) mate align(%s:%d) isize(%d) mapq(%d)",
                 read, read.getCigar(), read.getReadNegativeStrandFlag(),
                 read.getReadUnmappedFlag(), read.getProperPairFlag(),
                 read.getMateReferenceName(),
                 read.getMateAlignmentStart(),
-                read.getInferredInsertSize());
+                read.getInferredInsertSize(),
+                read.getMappingQuality());
     }
 
     public static List<AlignmentOperator> alignReads(SAMRecord subjectRead, SAMRecord refRead)
@@ -232,7 +233,7 @@ public class ReadCigarAligner
         // count the number of mismatches, if it is more than 30, log it as error
         long numMismatches = alignOps.stream().filter(op -> op == AlignmentOperator.MISMATCH).count();
 
-        if (numMismatches > 40)
+        if (numMismatches > 50)
         {
             sLogger.error("too many mismatches({}) subject({}) ref({})", numMismatches,
                     longDebugString(subjectRead), longDebugString(refRead));

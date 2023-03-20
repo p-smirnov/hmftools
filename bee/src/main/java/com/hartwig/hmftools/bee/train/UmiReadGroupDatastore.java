@@ -20,23 +20,23 @@ public class UmiReadGroupDatastore
     // chromosome -> position -> duplicate read groups
     Map<String, TreeMap<Integer, Collection<UmiReadGroup>>> mDupReadsMap = new HashMap<>();
 
-    synchronized public UmiReadGroup getOrCreate(String umi, String chromosome, int startPosition, boolean firstOfPair)
+    synchronized public UmiReadGroup getOrCreate(String umi, String chromosome, int read5PrimeReferencePos, boolean firstOfPair)
     {
         TreeMap<Integer, Collection<UmiReadGroup>> positionMap = mDupReadsMap.computeIfAbsent(chromosome, k -> new TreeMap<>());
 
-        Collection<UmiReadGroup> umiReadGroups = positionMap.computeIfAbsent(startPosition, k -> new ArrayList<>());
+        Collection<UmiReadGroup> umiReadGroups = positionMap.computeIfAbsent(read5PrimeReferencePos, k -> new ArrayList<>());
 
         // find that umi
         for (UmiReadGroup group : umiReadGroups)
         {
-            if (group.firstOfPair == firstOfPair && group.umi.equals(umi))
+            if (group.negativeStrand == firstOfPair && group.umi.equals(umi))
             {
                 return group;
             }
         }
 
         // cannot find it, make group
-        UmiReadGroup group = new UmiReadGroup(umi, chromosome, startPosition, firstOfPair);
+        UmiReadGroup group = new UmiReadGroup(umi, chromosome, read5PrimeReferencePos, firstOfPair);
         umiReadGroups.add(group);
         return group;
     }
