@@ -1,15 +1,13 @@
 package com.hartwig.hmftools.errorprofile;
 
-import static com.hartwig.hmftools.errorprofile.ErrorProfileUtils.createPartitions;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
+import com.hartwig.hmftools.common.region.ChrBaseRegion;
 import com.hartwig.hmftools.common.utils.config.ConfigBuilder;
-import com.hartwig.hmftools.common.utils.sv.ChrBaseRegion;
 import com.hartwig.hmftools.common.utils.version.VersionInfo;
 
 import org.apache.commons.cli.ParseException;
@@ -31,11 +29,25 @@ public class ErrorProfileApplication
 
     ReadProfiler mReadProfiler = new ReadProfiler();
 
-    GenomeRegionStatsCollector mGenomeRegionStatsCollector;
+    ReadQualAnalyser mReadQualAnalyser;
+
+    ReadBaseSupportFileWriter mReadBaseSupportFileWriter;
+
+    ReadProfileFileWriter mReadProfileFileWriter;
+
+    final BaseQualityBinCounter mBaseQualityBinCounter;
+
+    AtomicLong mReadsProcessed = new AtomicLong(0);
 
     public ErrorProfileApplication(final ConfigBuilder configBuilder) throws ParseException
     {
         mConfig = new ErrorProfileConfig(configBuilder);
+        mReadBaseSupportFileWriter = new ReadBaseSupportFileWriter(
+                ReadBaseSupportFileWriter.generateFilename(mConfig.OutputDir, mConfig.SampleId));
+        mReadProfileFileWriter = new ReadProfileFileWriter(
+                ReadProfileFileWriter.generateFilename(mConfig.OutputDir, mConfig.SampleId));
+
+        mBaseQualityBinCounter = new BaseQualityBinCounter();
     }
 
     public int run() throws InterruptedException, FileNotFoundException
@@ -50,18 +62,12 @@ public class ErrorProfileApplication
             return 1;
         }
 
-        try(ReadBaseSupportFileWriter readBaseSupportFileWriter = new ReadBaseSupportFileWriter(
-                ReadBaseSupportFileWriter.generateFilename(mConfig.OutputDir, mConfig.SampleId)))
-        {
-            try(ReadProfileFileWriter readProfileFileWriter = new ReadProfileFileWriter(
-                    ReadProfileFileWriter.generateFilename(mConfig.OutputDir, mConfig.SampleId)))
-            {
-                mGenomeRegionStatsCollector = new GenomeRegionStatsCollector(new IndexedFastaSequenceFile(new File(mConfig.RefGenomeFile)),
-                            readBaseSupportFileWriter, readProfileFileWriter);
+        mReadQualAnalyser = new ReadQualAnalyser(new IndexedFastaSequenceFile(new File(mConfig.RefGenomeFile)),
+                this::processReadProfile, this::processReadBaseSupport);
 
-                processBam();
-            }
-        }
+        processBam();
+
+        writeBaseQualityBinFile();
 
         // write error stats
         ErrorProfileFile.write(ErrorProfileFile.generateFilename(mConfig.OutputDir, mConfig.SampleId),
@@ -74,6 +80,9 @@ public class ErrorProfileApplication
                 sLogger.info("error profile is null");
             }
         }
+
+        mReadBaseSupportFileWriter.close();
+        mReadProfileFileWriter.close();
 
         Instant finish = Instant.now();
         long seconds = Duration.between(start, finish).getSeconds();
@@ -94,23 +103,56 @@ public class ErrorProfileApplication
 
     private void processBam() throws InterruptedException
     {
-        int numBamReaders = Math.max(mConfig.Threads - 1, 1);
-        List<ChrBaseRegion> partitions = createPartitions(mConfig);
+        long readsProcessed = mReadsProcessed.incrementAndGet();
+        mReadQualAnalyser.processBam(mConfig);
 
-        AsyncBamReader.processBam(mConfig.BamPath, readerFactory(mConfig), partitions, this::processRead, this::regionComplete,
-                numBamReaders, mConfig.MinMappingQuality);
+        if (readsProcessed % 10_000_000 == 0)
+        {
+            // write the stats every 100m reads
+            writeBaseQualityBinFile();
+        }
     }
 
     private void processRead(SAMRecord read, ChrBaseRegion baseRegion)
     {
         // mReadClassifier.classifyRead(read);
-        mGenomeRegionStatsCollector.processRead(read, baseRegion);
+        // mReadBaseSupportAnalyser.processRead(read, baseRegion);
+    }
+
+    public void processReadProfile(ReadProfile readProfile)
+    {
+        // write the read profiles
+        //mReadProfileFileWriter.write(readProfile);
+        mBaseQualityBinCounter.onReadProfile(readProfile);
+    }
+
+    public void processReadBaseSupport(ReadBaseSupport readBaseSupport)
+    {
+        // write the read bases supports
+        //mReadBaseSupportFileWriter.write(readBaseSupport);
+
+        mBaseQualityBinCounter.onReadBaseSupport(readBaseSupport);
     }
 
     private void regionComplete(ChrBaseRegion baseRegion)
     {
-        mGenomeRegionStatsCollector.regionComplete(baseRegion);
+        // mReadBaseSupportAnalyser.regionComplete(baseRegion);
         // mReadClassifier.classifyRead(read);
+    }
+
+    private void writeBaseQualityBinFile()
+    {
+        synchronized(mBaseQualityBinCounter)
+        {
+            sLogger.info("writing base quality bin counts to output");
+
+            // write the base qual bin counts
+            BaseQualityBinCountsFileWriter.write(BaseQualityBinCountsFileWriter.generateFilename(mConfig.OutputDir, mConfig.SampleId),
+                    mBaseQualityBinCounter.getBaseQualityCountMap());
+
+            TileBaseQualityBinCountsFileWriter.write(TileBaseQualityBinCountsFileWriter.generateFilename(mConfig.OutputDir, mConfig.SampleId),
+                    mBaseQualityBinCounter.getTileBaseQualityCountMap());
+        }
     }
 
     public static void main(final String... args) throws InterruptedException, FileNotFoundException, ParseException

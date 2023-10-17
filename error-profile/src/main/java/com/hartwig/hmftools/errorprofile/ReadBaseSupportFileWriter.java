@@ -5,7 +5,6 @@ import static com.hartwig.hmftools.common.utils.file.FileWriterUtils.createBuffe
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.List;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
@@ -59,12 +58,12 @@ public class ReadBaseSupportFileWriter implements AutoCloseable
         }
     }
 
-    synchronized public void write(@NotNull final List<ReadBaseSupport> readBaseSupports)
+    synchronized public void write(@NotNull final ReadBaseSupport readBaseSupport)
     {
         try
         {
-            for(ReadBaseSupport readBaseSupport : readBaseSupports)
-            {
+            //for(ReadBaseSupport readBaseSupport : readBaseSupports)
+            //{
                 for(ReadBaseSupport.PositionSupport posSupport : readBaseSupport.positionSupports)
                 {
                     for(Column c : Column.values())
@@ -92,7 +91,7 @@ public class ReadBaseSupportFileWriter implements AutoCloseable
                     }
                     csvPrinter.println();
                 }
-            }
+            //}
         }
         catch(IOException e)
         {

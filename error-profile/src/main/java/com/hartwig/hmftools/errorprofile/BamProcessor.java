@@ -8,8 +8,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 
-import com.hartwig.hmftools.common.utils.sv.ChrBaseRegion;
-
 public class BamProcessor
 {
     /*

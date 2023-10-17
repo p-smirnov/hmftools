@@ -3,6 +3,9 @@ package com.hartwig.hmftools.errorprofile;
 import static com.hartwig.hmftools.common.genome.refgenome.RefGenomeSource.REF_GENOME;
 import static com.hartwig.hmftools.common.genome.refgenome.RefGenomeSource.REF_GENOME_CFG_DESC;
 import static com.hartwig.hmftools.common.genome.refgenome.RefGenomeSource.addRefGenomeVersion;
+import static com.hartwig.hmftools.common.region.SpecificRegions.SPECIFIC_REGIONS;
+import static com.hartwig.hmftools.common.region.SpecificRegions.addSpecificChromosomesRegionsConfig;
+import static com.hartwig.hmftools.common.region.SpecificRegions.loadSpecificRegions;
 import static com.hartwig.hmftools.common.samtools.BamUtils.addValidationStringencyOption;
 import static com.hartwig.hmftools.common.utils.TaskExecutor.addThreadOptions;
 import static com.hartwig.hmftools.common.utils.TaskExecutor.parseThreads;
@@ -11,15 +14,12 @@ import static com.hartwig.hmftools.common.utils.config.ConfigUtils.addLoggingOpt
 import static com.hartwig.hmftools.common.utils.file.FileWriterUtils.addOutputDir;
 import static com.hartwig.hmftools.common.utils.file.FileWriterUtils.checkCreateOutputDir;
 import static com.hartwig.hmftools.common.utils.file.FileWriterUtils.parseOutputDir;
-import static com.hartwig.hmftools.common.utils.sv.ChrBaseRegion.SPECIFIC_REGIONS;
-import static com.hartwig.hmftools.common.utils.sv.ChrBaseRegion.addSpecificChromosomesRegionsConfig;
-import static com.hartwig.hmftools.common.utils.sv.ChrBaseRegion.loadSpecificRegions;
 
 import java.util.List;
 
 import com.hartwig.hmftools.common.samtools.BamUtils;
 import com.hartwig.hmftools.common.utils.config.ConfigBuilder;
-import com.hartwig.hmftools.common.utils.sv.ChrBaseRegion;
+import com.hartwig.hmftools.common.region.ChrBaseRegion;
 
 import org.apache.commons.cli.ParseException;
 

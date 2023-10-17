@@ -83,12 +83,12 @@ public class ReadProfileFileWriter implements AutoCloseable
         }
     }
 
-    synchronized public void write(List<ReadProfile> readProfileList)
+    synchronized public void write(ReadProfile readProfile)
     {
         try
         {
-            for(ReadProfile readProfile : readProfileList)
-            {
+            //for(ReadProfile readProfile : readProfileList)
+            //{
                 for (Column c : Column.values())
                 {
                     switch(c)
@@ -124,7 +124,7 @@ public class ReadProfileFileWriter implements AutoCloseable
                     }
                 }
                 csvPrinter.println();
-            }
+            //}
         }
         catch(IOException e)
         {

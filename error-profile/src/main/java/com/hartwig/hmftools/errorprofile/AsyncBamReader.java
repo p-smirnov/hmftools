@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 
 import com.hartwig.hmftools.common.samtools.BamSlicer;
-import com.hartwig.hmftools.common.utils.sv.ChrBaseRegion;
+import com.hartwig.hmftools.common.region.ChrBaseRegion;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

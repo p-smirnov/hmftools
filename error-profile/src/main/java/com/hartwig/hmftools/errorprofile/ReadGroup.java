@@ -9,7 +9,7 @@ import org.apache.logging.log4j.LogManager;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.hartwig.hmftools.common.utils.sv.ChrBaseRegion;
+import com.hartwig.hmftools.common.region.ChrBaseRegion;
 
 public class ReadGroup
 {

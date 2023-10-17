@@ -10,7 +10,7 @@ public class GenomePositionStats
 {
     GenomePosition mGenomePosition;
 
-    char refBase;
+    byte refBase;
     Counts posStrandCounts = new Counts();
     Counts negStrandCounts = new Counts();
 
@@ -42,7 +42,7 @@ public class GenomePositionStats
             return insertCounts.getOrDefault(seq, 0);
         }
 
-        void addToBaseCount(char base)
+        void addToBaseCount(byte base)
         {
             switch(base)
             {
@@ -55,7 +55,7 @@ public class GenomePositionStats
             }
         }
 
-        int getBaseCount(char base)
+        int getBaseCount(byte base)
         {
             switch(base)
             {
@@ -86,7 +86,7 @@ public class GenomePositionStats
         getStrandCounts(strand).deleteCount++;
     }
 
-    void addAlignedBase(Strand strand, char base)
+    void addAlignedBase(Strand strand, byte base)
     {
         getStrandCounts(strand).totalCount++;
         getStrandCounts(strand).addToBaseCount(base);
@@ -98,7 +98,7 @@ public class GenomePositionStats
         getStrandCounts(strand).softClippedCount++;
     }
 
-    BaseSupport getAlignedBaseSupport(char base)
+    BaseSupport getAlignedBaseSupport(byte base)
     {
         // we have an aligned base, lets see what it is
         // we need to check both strands
@@ -121,7 +121,7 @@ public class GenomePositionStats
                 posStrandCounts.deleteCount, negStrandCounts.deleteCount);
     }
 
-    BaseSupport getSoftClippedBaseSupport(char altBase)
+    BaseSupport getSoftClippedBaseSupport(byte altBase)
     {
         return new BaseSupport(posStrandCounts.totalCount, negStrandCounts.totalCount,
                 posStrandCounts.softClippedCount, negStrandCounts.softClippedCount);

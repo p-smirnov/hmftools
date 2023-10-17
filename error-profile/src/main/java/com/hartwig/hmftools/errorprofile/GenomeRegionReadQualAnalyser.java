@@ -4,11 +4,16 @@ import static com.hartwig.hmftools.errorprofile.ErrorProfileUtils.getReadStrand;
 
 import static htsjdk.samtools.util.SequenceUtil.N;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
+import com.hartwig.hmftools.common.region.ChrBaseRegion;
 import com.hartwig.hmftools.common.samtools.CigarHandler;
 import com.hartwig.hmftools.common.samtools.CigarTraversal;
-import com.hartwig.hmftools.common.utils.sv.ChrBaseRegion;
+import com.hartwig.hmftools.errorprofile.utils.IRefGenomeCache;
 
 import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.LogManager;
@@ -18,7 +23,6 @@ import org.jetbrains.annotations.Nullable;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.SequenceUtil;
 
 // go through all the reads in a certain region
@@ -35,38 +39,73 @@ import htsjdk.samtools.util.SequenceUtil;
 //
 // for each read, output
 //
-public class GenomeRegionStats
+public class GenomeRegionReadQualAnalyser
 {
-    public static final Logger sLogger = LogManager.getLogger(GenomeRegionStats.class);
+    public static final Logger sLogger = LogManager.getLogger(GenomeRegionReadQualAnalyser.class);
 
     private final ChrBaseRegion mGenomeRegion;
 
-    private final IndexedFastaSequenceFile mRefGenome;
-
-    private final String mRefBases;
+    private final IRefGenomeCache mRefGenomeCache;
 
     private final GenomePositionStats[] mGenomePositionStats;
 
-    private final StatsCollector statsCollector = new StatsCollector();
+    private final GenomePositionStatsAdder mGenomePositionStatsAdder = new GenomePositionStatsAdder();
 
-    public GenomeRegionStats(ChrBaseRegion genomeRegion, IndexedFastaSequenceFile refGenome)
+    private final List<SAMRecord> mReads = new ArrayList<>();
+
+    public GenomeRegionReadQualAnalyser(ChrBaseRegion genomeRegion, IRefGenomeCache refGenomeCache)
     {
         mGenomeRegion = genomeRegion;
-        mRefGenome = refGenome;
+        mRefGenomeCache = refGenomeCache;
 
-        // TODO: make sure this is not too large
-        mRefBases = refGenome.getSubsequenceAt(genomeRegion.chromosome(), genomeRegion.start(), genomeRegion.end()).getBaseString();
-
-        // this doesn't seem to work too well
+        // using one array for now
         mGenomePositionStats = new GenomePositionStats[genomeRegion.end() - genomeRegion.start() + 1];
     }
 
     public void addReadToStats(final SAMRecord read)
     {
-        CigarTraversal.traverseCigar(read, statsCollector);
+        if(read.getReadUnmappedFlag() || read.getDuplicateReadFlag())
+            return;
+
+        mReads.add(read);
+        CigarTraversal.traverseCigar(read, mGenomePositionStatsAdder);
 
         // if(mReadCounter > 0 && (mReadCounter % 1000) == 0)
            // purgeBaseDataList(record.getAlignmentStart());
+    }
+
+    public void completeRegion(
+            final AtomicLong readTagGenerator,
+            final Consumer<ReadProfile> readProfileConsumer,
+            final Consumer<ReadBaseSupport> readBaseSupportConsumer)
+    {
+        sLogger.info("region: {} read count: {}", mGenomeRegion, mReads.size());
+
+        List<ReadProfile> readProfiles = new ArrayList<>();
+        List<ReadBaseSupport> readBaseSupports = new ArrayList<>();
+
+        // process all reads in this region
+        for(SAMRecord read : mReads)
+        {
+            // we skip reads that are not entirely in this region
+            if(read.getAlignmentStart() < mGenomeRegion.start() || read.getAlignmentStart() + read.getReadLength() > mGenomeRegion.end() + 1)
+            {
+                continue;
+            }
+
+            // also skip reads that matches ref genome
+                /* if(regionData.stats.isAllMatch(read))
+                {
+                    continue;
+                }*/
+
+            long readTag = readTagGenerator.incrementAndGet();
+            ReadBaseSupport readBaseSupport = calcReadBaseSupport(read, readTag);
+            readBaseSupportConsumer.accept(readBaseSupport);
+            readProfileConsumer.accept(ReadProfiler.profileRead(read, readTag));
+        }
+
+        sLogger.info("region: {}", mGenomeRegion);
     }
 
     // check if this read matches ref genome
@@ -81,14 +120,13 @@ public class GenomeRegionStats
         String readString = record.getReadString();
         int startOffset = record.getAlignmentStart() - mGenomeRegion.start();
         int readOffset = Math.max(-startOffset, 0);
-        int length = record.getReadLength() - readOffset - Math.max(record.getAlignmentEnd() - mGenomeRegion.end(), 0);
-        int refOffset = Math.max(startOffset, 0);
+        int length = record.getReadLength();
 
         boolean allMatch = true;
 
         for(int i = 0; i < length; ++i)
         {
-            char refBase = mRefBases.charAt(refOffset + i);
+            byte refBase = mRefGenomeCache.getBase(record.getAlignmentStart() + i);
             if(refBase == N)
                 continue;
             char readBase = readString.charAt(readOffset + i);
@@ -125,15 +163,14 @@ public class GenomeRegionStats
         return mGenomePositionStats[posIndex];
     }
 
-    protected GenomePositionStats getOrCreatePositionStats(int position)
+    protected GenomePositionStats getOrCreatePositionStats(int refPosition)
     {
-        int posIndex = position - mGenomeRegion.start();
+        int posIndex = refPosition - mGenomeRegion.start();
         GenomePositionStats genomePositionStats = mGenomePositionStats[posIndex];
 
         if(genomePositionStats == null)
         {
-            char ref = mRefBases.charAt(posIndex);
-
+            byte ref = mRefGenomeCache.getBase(refPosition);
             genomePositionStats = new GenomePositionStats();
             genomePositionStats.refBase = ref;
             mGenomePositionStats[posIndex] = genomePositionStats;
@@ -142,8 +179,38 @@ public class GenomeRegionStats
         return genomePositionStats;
     }
 
-    class StatsCollector implements CigarHandler
+    protected byte[] getTrinucleotideContext(int refPosition)
     {
+        Validate.isTrue(refPosition > 1);
+        return mRefGenomeCache.getBases(refPosition - 1, refPosition + 1);
+    }
+
+    class GenomePositionStatsAdder implements CigarHandler
+    {
+        @Override
+        public void handleAlignment(final SAMRecord record, final CigarElement cigarElement, boolean beforeIndel, final int startReadIndex, final int startRefPos)
+        {
+            for(int i = 0; i < cigarElement.getLength(); i++)
+            {
+                int refPos = startRefPos + i;
+
+                if(refPos > mGenomeRegion.end())
+                    return;
+
+                if(refPos < mGenomeRegion.start())
+                    continue;
+
+                int readIndex = startReadIndex + i;
+
+                byte alt = record.getReadBases()[readIndex];
+
+                if(alt == N)
+                    continue;
+
+                getOrCreatePositionStats(refPos).addAlignedBase(getReadStrand(record), alt);
+            }
+        }
+
         @Override
         public void handleInsert(final SAMRecord record, final CigarElement e, final int readIndex, final int refPos)
         {
@@ -175,30 +242,6 @@ public class GenomeRegionStats
         }
 
         @Override
-        public void handleAlignment(final SAMRecord record, final CigarElement cigarElement, boolean beforeIndel, final int startReadIndex, final int startRefPos)
-        {
-            for(int i = 0; i < cigarElement.getLength(); i++)
-            {
-                int refPos = startRefPos + i;
-
-                if(refPos > mGenomeRegion.end())
-                    return;
-
-                if(refPos < mGenomeRegion.start())
-                    continue;
-
-                int readIndex = startReadIndex + i;
-
-                char alt = record.getReadString().charAt(readIndex);
-
-                if(alt == N)
-                    continue;
-
-                getOrCreatePositionStats(refPos).addAlignedBase(getReadStrand(record), alt);
-            }
-        }
-
-        @Override
         public void handleLeftSoftClip(final SAMRecord record, final CigarElement element)
         {
             // we get the extrapolated ref position
@@ -248,6 +291,7 @@ public class GenomeRegionStats
         }
     }
 
+    // this class builds the base support plus the context
     class ReadBaseSupportBuilder implements CigarHandler
     {
         private SAMRecord mRead;
@@ -269,8 +313,9 @@ public class GenomeRegionStats
                 for(ReadBaseSupport.PositionSupport posSupport : mBaseSupports.positionSupports)
                 {
                     posSupport.readPosition5To3 = mRead.getReadLength() - posSupport.readPosition5To3 - 1;
-                    posSupport.ref = SequenceUtil.reverseComplement(posSupport.ref);
-                    posSupport.alt = (char) SequenceUtil.complement((byte) posSupport.alt);
+                    SequenceUtil.reverseComplement(posSupport.ref);
+                    posSupport.alt = SequenceUtil.complement(posSupport.alt);
+                    SequenceUtil.reverseComplement(posSupport.trinucleotideContext);
                 }
 
                 // resort the position support by their position
@@ -279,10 +324,47 @@ public class GenomeRegionStats
             }
         }
 
+
+        @Override
+        public void handleAlignment(final SAMRecord record, final CigarElement e, boolean beforeIndel, final int startReadIndex, final int startRefPos)
+        {
+            for(int i = 0; i < e.getLength(); i++)
+            {
+                int refPos = startRefPos + i;
+
+                if(refPos > mGenomeRegion.end())
+                    return;
+
+                if(refPos < mGenomeRegion.start() || refPos <= 1)
+                    continue;
+
+                int readIndex = startReadIndex + i;
+
+                byte alt = record.getReadBases()[readIndex];
+
+                if(alt == N)
+                    continue;
+
+                GenomePositionStats genomePositionStats = getPositionStats(refPos);
+                if(genomePositionStats != null)
+                {
+                    Validate.isTrue(mRefGenomeCache.getBase(refPos) == genomePositionStats.refBase);
+
+                    CigarOperator cigarOp = genomePositionStats.refBase == alt ? CigarOperator.EQ : CigarOperator.X;
+
+                    mBaseSupports.addPositionSupport(new ReadBaseSupport.PositionSupport(cigarOp,
+                            new byte[] { genomePositionStats.refBase }, alt, readIndex,
+                            refPos, record.getBaseQualities()[readIndex],
+                            getTrinucleotideContext(refPos),
+                            genomePositionStats.getAlignedBaseSupport(alt)));
+                }
+            }
+        }
+
         @Override
         public void handleInsert(final SAMRecord record, final CigarElement e, final int startReadIndex, final int refPos)
         {
-            if(refPos < mGenomeRegion.start() || refPos > mGenomeRegion.end())
+            if(refPos < mGenomeRegion.start() || refPos > mGenomeRegion.end() || refPos <= 1)
                 return;
 
             // find the inserted sequence
@@ -297,13 +379,14 @@ public class GenomeRegionStats
                 for(int i = 0; i < e.getLength(); i++)
                 {
                     int readIndex = startReadIndex + i;
-                    char alt = record.getReadString().charAt(readIndex);
+                    byte alt = record.getReadBases()[readIndex];
 
                     if(alt == N)
                         continue;
 
                     mBaseSupports.addPositionSupport(new ReadBaseSupport.PositionSupport(CigarOperator.I,
-                            "", alt, readIndex, refPos, record.getBaseQualities()[readIndex],
+                            new byte[]{}, alt, readIndex, refPos, record.getBaseQualities()[readIndex],
+                            getTrinucleotideContext(refPos),
                             support));
                 }
             }
@@ -316,7 +399,7 @@ public class GenomeRegionStats
             // We do not actually keep track of how many times a multi base delete has happened at a particular point in genome
             // we proxy by finding the position with the lowest supporting count
             BaseSupport leastSupport = null;
-            String refBases = mRefBases.substring(startRefPos - mGenomeRegion.start(), startRefPos - mGenomeRegion.start() + e.getLength());
+            byte[] refBases = mRefGenomeCache.getBases(startRefPos, startRefPos + e.getLength() - 1);
 
             for(int i = 0; i < e.getLength(); i++)
             {
@@ -325,13 +408,13 @@ public class GenomeRegionStats
                 if(refPos > mGenomeRegion.end())
                     return;
 
-                if(refPos < mGenomeRegion.start())
+                if(refPos < mGenomeRegion.start() || refPos <= 1)
                     continue;
 
                 GenomePositionStats genomePositionStats = getPositionStats(refPos);
                 if(genomePositionStats != null)
                 {
-                    Validate.isTrue(refBases.charAt(i) == genomePositionStats.refBase);
+                    Validate.isTrue(refBases[i] == genomePositionStats.refBase);
                     BaseSupport baseSupport = genomePositionStats.getDeleteBaseSupport();
                     if (leastSupport == null || baseSupport.totalSupport() < leastSupport.totalSupport())
                     {
@@ -343,43 +426,9 @@ public class GenomeRegionStats
             if (leastSupport != null)
             {
                 mBaseSupports.addPositionSupport(new ReadBaseSupport.PositionSupport(CigarOperator.D,
-                    refBases, '-', readIndex, startRefPos, record.getBaseQualities()[readIndex],
+                    refBases, (byte) '-', readIndex, startRefPos, record.getBaseQualities()[readIndex],
+                        getTrinucleotideContext(startRefPos),
                         leastSupport));
-            }
-        }
-
-        @Override
-        public void handleAlignment(final SAMRecord record, final CigarElement e, boolean beforeIndel, final int startReadIndex, final int startRefPos)
-        {
-            for(int i = 0; i < e.getLength(); i++)
-            {
-                int refPos = startRefPos + i;
-
-                if(refPos > mGenomeRegion.end())
-                    return;
-
-                if(refPos < mGenomeRegion.start())
-                    continue;
-
-                int readIndex = startReadIndex + i;
-
-                char alt = record.getReadString().charAt(readIndex);
-
-                if(alt == N)
-                    continue;
-
-                GenomePositionStats genomePositionStats = getPositionStats(refPos);
-                if(genomePositionStats != null)
-                {
-                    Validate.isTrue(mRefBases.charAt(refPos - mGenomeRegion.start()) == genomePositionStats.refBase);
-
-                    CigarOperator cigarOp = genomePositionStats.refBase == alt ? CigarOperator.EQ : CigarOperator.X;
-
-                    mBaseSupports.addPositionSupport(new ReadBaseSupport.PositionSupport(cigarOp,
-                            String.valueOf(genomePositionStats.refBase), alt, readIndex,
-                            refPos, record.getBaseQualities()[readIndex],
-                            genomePositionStats.getAlignedBaseSupport(alt)));
-                }
             }
         }
 
@@ -392,7 +441,14 @@ public class GenomeRegionStats
             for(int readIndex = 0; readIndex < element.getLength(); readIndex++)
             {
                 int refPos = startRefPos + readIndex;
-                char alt = record.getReadString().charAt(readIndex);
+
+                if(refPos > mGenomeRegion.end())
+                    return;
+
+                if(refPos < mGenomeRegion.start() || refPos <= 1)
+                    continue;
+
+                byte alt = record.getReadBases()[readIndex];
 
                 if(alt == N)
                     continue;
@@ -400,10 +456,11 @@ public class GenomeRegionStats
                 GenomePositionStats genomePositionStats = getPositionStats(refPos);
                 if(genomePositionStats != null)
                 {
-                    Validate.isTrue(mRefBases.charAt(refPos - mGenomeRegion.start()) == genomePositionStats.refBase);
+                    Validate.isTrue(mRefGenomeCache.getBase(refPos) == genomePositionStats.refBase);
                     mBaseSupports.addPositionSupport(new ReadBaseSupport.PositionSupport(CigarOperator.S,
-                            String.valueOf(genomePositionStats.refBase), alt, readIndex, refPos,
+                            new byte[] { genomePositionStats.refBase }, alt, readIndex, refPos,
                             record.getBaseQualities()[readIndex],
+                            getTrinucleotideContext(refPos),
                             genomePositionStats.getSoftClippedBaseSupport(alt)));
                 }
             }
@@ -419,12 +476,12 @@ public class GenomeRegionStats
                 if(refPos > mGenomeRegion.end())
                     return;
 
-                if(refPos < mGenomeRegion.start())
+                if(refPos < mGenomeRegion.start() || refPos <= 1)
                     continue;
 
                 int readIndex = startReadIndex + i;
 
-                char alt = record.getReadString().charAt(readIndex);
+                byte alt = record.getReadBases()[readIndex];
 
                 if(alt == N)
                     continue;
@@ -432,10 +489,11 @@ public class GenomeRegionStats
                 GenomePositionStats genomePositionStats = getPositionStats(refPos);
                 if(genomePositionStats != null)
                 {
-                    Validate.isTrue(mRefBases.charAt(refPos - mGenomeRegion.start()) == genomePositionStats.refBase);
+                    Validate.isTrue(mRefGenomeCache.getBase(refPos) == genomePositionStats.refBase);
                     mBaseSupports.addPositionSupport(new ReadBaseSupport.PositionSupport(CigarOperator.S,
-                            String.valueOf(genomePositionStats.refBase), alt, readIndex, refPos,
+                            new byte[] { genomePositionStats.refBase }, alt, readIndex, refPos,
                             record.getBaseQualities()[readIndex],
+                            getTrinucleotideContext(refPos),
                             genomePositionStats.getSoftClippedBaseSupport(alt)));
                 }
             }

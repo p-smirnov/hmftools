@@ -17,13 +17,15 @@ public class ReadBaseSupport
     {
         public CigarOperator cigarOperator;
 
-        public String ref;
-        public char alt;
+        public byte[] ref;
+        public byte alt;
 
         public int readPosition5To3;
         public int refPosition;
 
         public int baseQuality;
+
+        public byte[] trinucleotideContext;
 
         /*
         public PositionSupport(
@@ -38,7 +40,8 @@ public class ReadBaseSupport
             this.readPosition = readPosition;
         }*/
 
-        public PositionSupport(CigarOperator cigarOp, String ref, char alt, int readPosition5To3, int refPosition, byte baseQuality,
+        public PositionSupport(CigarOperator cigarOp, byte[] ref, byte alt, int readPosition5To3, int refPosition, byte baseQuality,
+                byte[] trinucleotideContext,
                 BaseSupport baseSupport)
         {
             super(baseSupport.posStrandDepth, baseSupport.negStrandDepth, baseSupport.posStrandSupport, baseSupport.negStrandSupport);
@@ -48,6 +51,12 @@ public class ReadBaseSupport
             this.readPosition5To3 = readPosition5To3;
             this.refPosition = refPosition;
             this.baseQuality = baseQuality;
+            this.trinucleotideContext = trinucleotideContext;
+        }
+
+        public boolean isAlignment()
+        {
+            return cigarOperator.isAlignment();
         }
     }
 
