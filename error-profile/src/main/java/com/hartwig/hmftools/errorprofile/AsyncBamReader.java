@@ -7,14 +7,14 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import com.hartwig.hmftools.common.samtools.BamSlicer;
 import com.hartwig.hmftools.common.region.ChrBaseRegion;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.util.BiConsumer;
 
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
@@ -25,6 +25,13 @@ public class AsyncBamReader
 {
     private static final Logger logger = LogManager.getLogger(AsyncBamReader.class);
 
+    public interface IReadHandler
+    {
+        void processRead(SAMRecord read, ChrBaseRegion baseRegion);
+
+        void regionComplete(ChrBaseRegion baseRegion);
+    }
+
     static class BamReaderThread extends Thread
     {
         final Queue<ChrBaseRegion> mTaskQ;
@@ -33,18 +40,14 @@ public class AsyncBamReader
         private final BamSlicer mBamSlicer;
 
         private final int mMinMappingQuality;
-        BiConsumer<SAMRecord, ChrBaseRegion> mConsumer;
-        Consumer<ChrBaseRegion> mRegionComplete;
+        private final IReadHandler mReadHandler;
 
         BamReaderThread(final String bamFile, final SamReaderFactory samReaderFactory, final Queue<ChrBaseRegion> inTaskQ,
-                BiConsumer<SAMRecord, ChrBaseRegion> consumer, Consumer<ChrBaseRegion> regionComplete,
-                int minMappingQuality)
+                int minMappingQuality, IReadHandler readHandler)
         {
             mTaskQ = inTaskQ;
             mSamReader = samReaderFactory.open(new File(bamFile));
-            // mMinMappingQuality = minMappingQuality;
-            mConsumer = consumer;
-            mRegionComplete = regionComplete;
+            mReadHandler = readHandler;
             mMinMappingQuality = minMappingQuality;
             mBamSlicer = new BamSlicer(0, false, false, false);
         }
@@ -84,11 +87,11 @@ public class AsyncBamReader
                         // check overlap
                         if (region.end() >= record.getAlignmentStart() && region.start() <= alignmentEnd)
                         {
-                            mConsumer.accept(record, region);
+                            mReadHandler.processRead(record, region);
                         }
                     }
 
-                    mRegionComplete.accept(region);
+                    mReadHandler.regionComplete(region);
                 }
             }
 
@@ -121,8 +124,7 @@ public class AsyncBamReader
     public static void processBam(final String bamFile,
             final SamReaderFactory samReaderFactory,
             List<ChrBaseRegion> chrBaseRegions,
-            BiConsumer<SAMRecord, ChrBaseRegion> asyncRecordHandler,
-            Consumer<ChrBaseRegion> regionCompleteHandler,
+            Supplier<IReadHandler> threadReadHandlerCreate,
             int threadCount,
             int minMappingQuality)
             throws InterruptedException
@@ -136,7 +138,8 @@ public class AsyncBamReader
 
         for (int i = 0; i < Math.max(threadCount, 1); ++i)
         {
-            var t = new BamReaderThread(bamFile, samReaderFactory, taskQ, asyncRecordHandler, regionCompleteHandler, minMappingQuality);
+            IReadHandler readHandler = threadReadHandlerCreate.get();
+            var t = new BamReaderThread(bamFile, samReaderFactory, taskQ, minMappingQuality, readHandler);
             t.setName(String.format("worker-%d", i));
             t.start();
             bamReaders.add(t);

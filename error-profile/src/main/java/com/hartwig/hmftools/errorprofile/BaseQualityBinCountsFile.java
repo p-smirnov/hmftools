@@ -11,7 +11,7 @@ import com.hartwig.hmftools.common.utils.file.DelimFileWriter;
 
 import org.jetbrains.annotations.NotNull;
 
-public class BaseQualityBinCountsFileWriter
+public class BaseQualityBinCountsFile
 {
     enum Column
     {
@@ -69,8 +69,38 @@ public class BaseQualityBinCountsFileWriter
             row.set(Column.alt, (char)baseQualityBin.alt);
             row.set(Column.trinucleotideContext, baseQualityBin.getTrinucleotideContextString());
             row.set(Column.rawBaseQuality, baseQualityBin.rawBaseQuality);
-            row.set(Column.nonVariant, count.nonVariantCount.get());
-            row.set(Column.realVariant, count.realVariantCount.get());
+            row.set(Column.nonVariant, count.getNonVariantCount());
+            row.set(Column.realVariant, count.getRealVariantCount());
+        });
+    }
+
+    public static void read(final String filename, @NotNull final Map<BaseQualityBin, BaseQualityBinCounter.Count> baseQualityBinCountMap)
+    {
+        Comparator<BaseQualityBin> comparator = Comparator.comparing((BaseQualityBin o) -> !o.firstOfPair)
+                .thenComparingInt((BaseQualityBin o) -> o.readPosition)
+                .thenComparing((BaseQualityBin o) -> o.ref)
+                .thenComparing((BaseQualityBin o) -> o.alt)
+                .thenComparing((BaseQualityBin o) -> o.trinucleotideContext0)
+                .thenComparing((BaseQualityBin o) -> o.trinucleotideContext1)
+                .thenComparing((BaseQualityBin o) -> o.trinucleotideContext2)
+                .thenComparingInt((BaseQualityBin o) -> o.rawBaseQuality);
+
+        // sort the bins
+        List<BaseQualityBin> baseQualBins = baseQualityBinCountMap.keySet().stream().sorted(comparator).collect(Collectors.toList());
+
+        List<String> columns = Arrays.stream(Column.values()).map(Enum::name).collect(Collectors.toList());
+
+        new DelimFileWriter().write(filename, columns, baseQualBins, (baseQualityBin, row) ->
+        {
+            BaseQualityBinCounter.Count count = baseQualityBinCountMap.get(baseQualityBin);
+            row.set(Column.firstOfPair, baseQualityBin.firstOfPair);
+            row.set(Column.readPosition, baseQualityBin.readPosition);
+            row.set(Column.ref, (char)baseQualityBin.ref);
+            row.set(Column.alt, (char)baseQualityBin.alt);
+            row.set(Column.trinucleotideContext, baseQualityBin.getTrinucleotideContextString());
+            row.set(Column.rawBaseQuality, baseQualityBin.rawBaseQuality);
+            row.set(Column.nonVariant, count.getNonVariantCount());
+            row.set(Column.realVariant, count.getRealVariantCount());
         });
     }
 }

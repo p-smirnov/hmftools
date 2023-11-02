@@ -1,12 +1,13 @@
 package com.hartwig.hmftools.errorprofile;
 
+import static java.time.format.DateTimeFormatter.ISO_ZONED_DATE_TIME;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.hartwig.hmftools.common.region.ChrBaseRegion;
 import com.hartwig.hmftools.common.utils.config.ConfigBuilder;
 import com.hartwig.hmftools.common.utils.version.VersionInfo;
 
@@ -14,10 +15,8 @@ import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.cram.ref.ReferenceSource;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 
 public class ErrorProfileApplication
 {
@@ -35,8 +34,6 @@ public class ErrorProfileApplication
 
     ReadProfileFileWriter mReadProfileFileWriter;
 
-    final BaseQualityBinCounter mBaseQualityBinCounter;
-
     AtomicLong mReadsProcessed = new AtomicLong(0);
 
     public ErrorProfileApplication(final ConfigBuilder configBuilder) throws ParseException
@@ -46,15 +43,18 @@ public class ErrorProfileApplication
                 ReadBaseSupportFileWriter.generateFilename(mConfig.OutputDir, mConfig.SampleId));
         mReadProfileFileWriter = new ReadProfileFileWriter(
                 ReadProfileFileWriter.generateFilename(mConfig.OutputDir, mConfig.SampleId));
-
-        mBaseQualityBinCounter = new BaseQualityBinCounter();
     }
 
-    public int run() throws InterruptedException, FileNotFoundException
+    public int run(final String... args) throws InterruptedException
     {
         Instant start = Instant.now();
 
         mVersionInfo = new VersionInfo("errorprofile.version");
+
+        sLogger.info("ErrorProfile version: {}", mVersionInfo.version());
+
+        sLogger.debug("build timestamp: {}, run args: {}",
+                mVersionInfo.buildTime().format(ISO_ZONED_DATE_TIME), String.join(" ", args));
 
         if(!mConfig.isValid())
         {
@@ -62,12 +62,11 @@ public class ErrorProfileApplication
             return 1;
         }
 
-        mReadQualAnalyser = new ReadQualAnalyser(new IndexedFastaSequenceFile(new File(mConfig.RefGenomeFile)),
-                this::processReadProfile, this::processReadBaseSupport);
+        mReadQualAnalyser = new ReadQualAnalyser();
 
         processBam();
 
-        writeBaseQualityBinFile();
+        writeBaseQualityBinFile(mReadQualAnalyser.getBaseQualityBinCounter());
 
         // write error stats
         ErrorProfileFile.write(ErrorProfileFile.generateFilename(mConfig.OutputDir, mConfig.SampleId),
@@ -103,56 +102,19 @@ public class ErrorProfileApplication
 
     private void processBam() throws InterruptedException
     {
-        long readsProcessed = mReadsProcessed.incrementAndGet();
         mReadQualAnalyser.processBam(mConfig);
-
-        if (readsProcessed % 10_000_000 == 0)
-        {
-            // write the stats every 100m reads
-            writeBaseQualityBinFile();
-        }
     }
 
-    private void processRead(SAMRecord read, ChrBaseRegion baseRegion)
+    private void writeBaseQualityBinFile(BaseQualityBinCounter baseQualityBinCounter)
     {
-        // mReadClassifier.classifyRead(read);
-        // mReadBaseSupportAnalyser.processRead(read, baseRegion);
-    }
+        sLogger.info("writing base quality bin counts to output");
 
-    public void processReadProfile(ReadProfile readProfile)
-    {
-        // write the read profiles
-        //mReadProfileFileWriter.write(readProfile);
-        mBaseQualityBinCounter.onReadProfile(readProfile);
-    }
+        // write the base qual bin counts
+        BaseQualityBinCountsFile.write(BaseQualityBinCountsFile.generateFilename(mConfig.OutputDir, mConfig.SampleId),
+                baseQualityBinCounter.getBaseQualityCountMap());
 
-    public void processReadBaseSupport(ReadBaseSupport readBaseSupport)
-    {
-        // write the read bases supports
-        //mReadBaseSupportFileWriter.write(readBaseSupport);
-
-        mBaseQualityBinCounter.onReadBaseSupport(readBaseSupport);
-    }
-
-    private void regionComplete(ChrBaseRegion baseRegion)
-    {
-        // mReadBaseSupportAnalyser.regionComplete(baseRegion);
-        // mReadClassifier.classifyRead(read);
-    }
-
-    private void writeBaseQualityBinFile()
-    {
-        synchronized(mBaseQualityBinCounter)
-        {
-            sLogger.info("writing base quality bin counts to output");
-
-            // write the base qual bin counts
-            BaseQualityBinCountsFileWriter.write(BaseQualityBinCountsFileWriter.generateFilename(mConfig.OutputDir, mConfig.SampleId),
-                    mBaseQualityBinCounter.getBaseQualityCountMap());
-
-            TileBaseQualityBinCountsFileWriter.write(TileBaseQualityBinCountsFileWriter.generateFilename(mConfig.OutputDir, mConfig.SampleId),
-                    mBaseQualityBinCounter.getTileBaseQualityCountMap());
-        }
+        TileBaseQualityBinCountsFileWriter.write(TileBaseQualityBinCountsFileWriter.generateFilename(mConfig.OutputDir, mConfig.SampleId),
+                baseQualityBinCounter.getTileBaseQualityCountMap());
     }
 
     public static void main(final String... args) throws InterruptedException, FileNotFoundException, ParseException
@@ -172,6 +134,6 @@ public class ErrorProfileApplication
             System.exit(1);
         });
 
-        System.exit(new ErrorProfileApplication(configBuilder).run());
+        System.exit(new ErrorProfileApplication(configBuilder).run(args));
     }
 }

@@ -12,6 +12,7 @@ import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import com.hartwig.hmftools.common.genome.region.Strand;
 import com.hartwig.hmftools.common.region.ChrBaseRegion;
@@ -95,8 +96,8 @@ public class ErrorProfileUtils
         return factory.open(new File(bamFile));
     }
 
-    public static void processBamAsync(ErrorProfileConfig config, BiConsumer<SAMRecord, ChrBaseRegion> asyncRecordHandler,
-            Consumer<ChrBaseRegion> regionCompleteHandler) throws InterruptedException
+    public static void processBamAsync(ErrorProfileConfig config, Supplier<AsyncBamReader.IReadHandler> readHandlerSupplier)
+            throws InterruptedException
     {
         int numBamReaders = Math.max(config.Threads - 1, 1);
         List<ChrBaseRegion> partitions = createPartitions(config);
@@ -107,7 +108,7 @@ public class ErrorProfileUtils
             readerFactory = readerFactory.referenceSource(new ReferenceSource(new File(config.RefGenomeFile)));
         }
 
-        AsyncBamReader.processBam(config.BamPath, readerFactory, partitions, asyncRecordHandler, regionCompleteHandler,
+        AsyncBamReader.processBam(config.BamPath, readerFactory, partitions, readHandlerSupplier,
                 numBamReaders, config.MinMappingQuality);
     }
 

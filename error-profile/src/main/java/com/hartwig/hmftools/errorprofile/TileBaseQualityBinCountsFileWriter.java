@@ -74,8 +74,8 @@ public class TileBaseQualityBinCountsFileWriter
             row.set(Column.ref, (char)baseQualityBin.ref);
             row.set(Column.alt, (char)baseQualityBin.alt);
             row.set(Column.rawBaseQuality, baseQualityBin.rawBaseQuality);
-            row.set(Column.nonVariant, count.nonVariantCount.get());
-            row.set(Column.realVariant, count.realVariantCount.get());
+            row.set(Column.nonVariant, count.getNonVariantCount());
+            row.set(Column.realVariant, count.getRealVariantCount());
         });
     }
 }

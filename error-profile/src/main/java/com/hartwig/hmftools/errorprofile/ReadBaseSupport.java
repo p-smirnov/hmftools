@@ -23,7 +23,7 @@ public class ReadBaseSupport
         public int readPosition5To3;
         public int refPosition;
 
-        public int baseQuality;
+        public byte baseQuality;
 
         public byte[] trinucleotideContext;
 

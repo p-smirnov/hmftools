@@ -10,4 +10,11 @@ public class ErrorProfileConstants
     public static int BASE_QUAL_CUTOFF = 30;
 
     public static double STRAND_BIAS_CUTOFF = 0.1;
+
+    public static double READ_POS_SMOOTH_SIGMA = 4;
+
+    // 4 points in phred space
+    public static double BASEQ_OUTLIER_CUTOFF = 4;
+
+    public static int BASEQ_OUTLIER_MEDIAN_COUNT = 5;
 }

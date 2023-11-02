@@ -105,7 +105,7 @@ public class GenomeRegionReadQualAnalyser
             readProfileConsumer.accept(ReadProfiler.profileRead(read, readTag));
         }
 
-        sLogger.info("region: {}", mGenomeRegion);
+        sLogger.info("finished processing region: {}", mGenomeRegion);
     }
 
     // check if this read matches ref genome
@@ -117,7 +117,7 @@ public class GenomeRegionReadQualAnalyser
 
         // this record has 151M, check it against the ref
         // we need to
-        String readString = record.getReadString();
+        byte[] readBases = record.getReadBases();
         int startOffset = record.getAlignmentStart() - mGenomeRegion.start();
         int readOffset = Math.max(-startOffset, 0);
         int length = record.getReadLength();
@@ -129,7 +129,7 @@ public class GenomeRegionReadQualAnalyser
             byte refBase = mRefGenomeCache.getBase(record.getAlignmentStart() + i);
             if(refBase == N)
                 continue;
-            char readBase = readString.charAt(readOffset + i);
+            byte readBase = readBases[readOffset + i];
             if(readBase != N && readBase != refBase)
             {
                 allMatch = false;
@@ -257,7 +257,7 @@ public class GenomeRegionReadQualAnalyser
                 if(refPos < mGenomeRegion.start())
                     continue;
 
-                char alt = record.getReadString().charAt(readIndex);
+                byte alt = record.getReadBases()[readIndex];
 
                 if(alt == N)
                     continue;
@@ -281,7 +281,7 @@ public class GenomeRegionReadQualAnalyser
 
                 int readIndex = startReadIndex + i;
 
-                char alt = record.getReadString().charAt(readIndex);
+                byte alt = record.getReadBases()[readIndex];
 
                 if(alt == N)
                     continue;

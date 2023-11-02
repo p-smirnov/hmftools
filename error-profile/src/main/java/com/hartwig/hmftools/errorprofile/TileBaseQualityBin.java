@@ -1,34 +1,45 @@
 package com.hartwig.hmftools.errorprofile;
 
+import static htsjdk.samtools.util.SequenceUtil.A;
+import static htsjdk.samtools.util.SequenceUtil.T;
+import static htsjdk.samtools.util.SequenceUtil.C;
+import static htsjdk.samtools.util.SequenceUtil.G;
+
 // we get from read id
 // @<instrument>:<run number>:<flowcell ID>:<lane>:<tile>:<x-pos>:<y-pos>:<UMI> <read>:<is filtered>:<control number>:<index>
+// TODO: 1. use byte array for flowcell
+//       2. improve the hash function
+//       3. cache the hash code
 public class TileBaseQualityBin
 {
-    public String flowcell;
+    public final String flowcell;
 
-    public int lane;
-    public int tile;
+    public final short lane;
+    public final short tile;
 
-    public boolean firstOfPair;
+    public final boolean firstOfPair;
 
-    public int readPosition;
+    public final short readPosition;
 
-    public byte ref;
-    public byte alt;
+    public final byte ref;
+    public final byte alt;
 
-    public int rawBaseQuality;
+    public final byte rawBaseQuality;
+
+    private final int hashCodeCache;
 
     public TileBaseQualityBin(final String flowcell, final int lane, final int tile, final boolean firstOfPair, final int readPosition,
-            final byte ref, final byte alt, final int rawBaseQuality)
+            final byte ref, final byte alt, final byte rawBaseQuality)
     {
         this.flowcell = flowcell;
-        this.lane = lane;
-        this.tile = tile;
+        this.lane = (short)lane;
+        this.tile = (short)tile;
         this.firstOfPair = firstOfPair;
-        this.readPosition = readPosition;
+        this.readPosition = (short)readPosition;
         this.ref = ref;
         this.alt = alt;
         this.rawBaseQuality = rawBaseQuality;
+        hashCodeCache = calcHashCode();
     }
 
     @Override
@@ -73,21 +84,44 @@ public class TileBaseQualityBin
         {
             return false;
         }
-        return flowcell.equals(that.flowcell);
+        return flowcell.equals(that.flowcell); // use intern string therefore this is ok
     }
 
     @Override
     public int hashCode()
     {
-        // deliberately omit flowcell from hashcode, since it is inefficient to calculate
-        int result = 1;
-        result = 31 * result + lane;
-        result = 31 * result + tile;
-        result = 31 * result + (firstOfPair ? 1 : 0);
-        result = 31 * result + readPosition;
-        result = 31 * result + (int) ref;
-        result = 31 * result + (int) alt;
-        result = 31 * result + rawBaseQuality;
+        return hashCodeCache;
+    }
+
+    private int calcHashCode()
+    {
+        // usually 4 lanes
+        int result = lane;
+
+        // tile number first digit says whether it is top half or bottom half
+        int tileFirstDigit = tile / 1000;
+        result = 2 * result + tileFirstDigit;
+        result = 2 * result + (firstOfPair ? 1 : 0);
+        result = 151 * result + readPosition;
+        result = 4 * result + baseToHashCode(ref);
+        result = 4 * result + baseToHashCode(alt);
+        result = 991 * result + tile % 1000;
+
+        // previous parts produce a linear hash code, we want to spread it out
+        result = 61 * result + rawBaseQuality;
+        result = 8191 * result + flowcell.hashCode();
         return result;
+    }
+
+    private static int baseToHashCode(byte base)
+    {
+        switch(base)
+        {
+            case A: return 0;
+            case T: return 1;
+            case C: return 2;
+            case G: return 3;
+            default: throw new IllegalArgumentException();
+        }
     }
 }

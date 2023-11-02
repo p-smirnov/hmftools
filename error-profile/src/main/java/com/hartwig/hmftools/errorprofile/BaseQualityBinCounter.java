@@ -1,29 +1,58 @@
 package com.hartwig.hmftools.errorprofile;
 
 import static htsjdk.samtools.util.SequenceUtil.A;
-import static htsjdk.samtools.util.SequenceUtil.N;
-import static htsjdk.samtools.util.SequenceUtil.T;
 import static htsjdk.samtools.util.SequenceUtil.C;
 import static htsjdk.samtools.util.SequenceUtil.G;
+import static htsjdk.samtools.util.SequenceUtil.N;
+import static htsjdk.samtools.util.SequenceUtil.T;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+
+import com.google.common.collect.Interner;
+import com.google.common.collect.Interners;
 
 import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.lang3.tuple.Triple;
 
 // class to look at all the bam error stats
 // comprehensive
 //
 public class BaseQualityBinCounter
 {
+    // We need to make sure the count can be incremented atomically.
+    // use AtomicIntegerFieldUpdater instead of AtomicInteger, it is much more efficient
+    // https://stackoverflow.com/questions/58863128/unexpected-varhandle-performance-4x-slower-than-alternatives
     public static class Count
     {
-        AtomicInteger nonVariantCount = new AtomicInteger(0);
-        AtomicInteger realVariantCount = new AtomicInteger(0);
+        private volatile int nonVariantCount = 0;
+        private volatile int realVariantCount = 0;
+
+        public int getNonVariantCount()
+        {
+            return nonVariantCount;
+        }
+
+        public int getRealVariantCount()
+        {
+            return realVariantCount;
+        }
+
+        void incrementNonVariantCount()
+        {
+            NON_VARIANT_COUNT_UPDATER.getAndAdd(this, 1);
+        }
+
+        void incrementRealVariantCount()
+        {
+            REAL_VARIANT_COUNT_UPDATER.getAndAdd(this, 1);
+        }
+
+        private static final AtomicIntegerFieldUpdater<Count> NON_VARIANT_COUNT_UPDATER =
+                AtomicIntegerFieldUpdater.newUpdater(Count.class, "nonVariantCount");
+        private static final AtomicIntegerFieldUpdater<Count> REAL_VARIANT_COUNT_UPDATER =
+                AtomicIntegerFieldUpdater.newUpdater(Count.class, "realVariantCount");
     }
 
     public static class BaseCount
@@ -61,10 +90,12 @@ public class BaseQualityBinCounter
     Map<BaseQualityBin, Count> mBaseQualityCountMap = new ConcurrentHashMap<>();
     Map<TileBaseQualityBin, Count> mTileBaseQualityCountMap = new ConcurrentHashMap<>();
 
-    Map<BaseQualityBin, Count> getBaseQualityCountMap() { return mBaseQualityCountMap; }
-    Map<TileBaseQualityBin, Count> getTileBaseQualityCountMap() { return mTileBaseQualityCountMap; }
+    Interner<String> mStringInterner = Interners.newStrongInterner();
 
-    synchronized void onReadProfile(ReadProfile readProfile)
+    public Map<BaseQualityBin, Count> getBaseQualityCountMap() { return mBaseQualityCountMap; }
+    public Map<TileBaseQualityBin, Count> getTileBaseQualityCountMap() { return mTileBaseQualityCountMap; }
+
+    void onReadProfile(ReadProfile readProfile)
     {
         // add the read profile to the counts
 
@@ -81,7 +112,7 @@ public class BaseQualityBinCounter
         // get the read id
         ImmutableTriple<String, Integer, Integer> flowcellLaneTile = ErrorProfileUtils.parseFlowcellLaneTile(readBaseSupport.read.getReadName());
         Validate.notNull(flowcellLaneTile);
-        String flowcell = flowcellLaneTile.getLeft();
+        String flowcell = mStringInterner.intern(flowcellLaneTile.getLeft());
         int lane = flowcellLaneTile.getMiddle();
         int tile = flowcellLaneTile.getRight();
 
@@ -129,21 +160,18 @@ public class BaseQualityBinCounter
             Count c = mBaseQualityCountMap.computeIfAbsent(bqBin, (k) -> new Count());
             Count tileCount = mTileBaseQualityCountMap.computeIfAbsent(tileBaseQualityBin, (k) -> new Count());
 
+            //Count tileCount = mFastTileBaseQualityCountMap.getOrCreate(tileBaseQualityBin);
+
             if(ErrorProfileCalcs.likelyRealVariant(posSupport))
             {
-                c.realVariantCount.incrementAndGet();
-                tileCount.realVariantCount.incrementAndGet();
+                c.incrementRealVariantCount();
+                tileCount.incrementRealVariantCount();
             }
             else
             {
-                c.nonVariantCount.incrementAndGet();
-                tileCount.nonVariantCount.incrementAndGet();
+                c.incrementNonVariantCount();
+                tileCount.incrementNonVariantCount();
             }
         }
-    }
-
-    void getOrCreateBaseQualityBin()
-    {
-
     }
 }

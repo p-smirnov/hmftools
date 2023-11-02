@@ -1,5 +1,10 @@
 package com.hartwig.hmftools.errorprofile;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -15,75 +20,105 @@ import org.apache.logging.log4j.Logger;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 
+// For performance reasons, this class is not decoupled from the threading
+// We want to avoid locks, queues as much as possible
 public class ReadQualAnalyser
 {
     private static final Logger sLogger = LogManager.getLogger(ReadQualAnalyser.class);
 
-    static class GenomeRegionData
+    static class StatsCollectorThread implements AsyncBamReader.IReadHandler
     {
-        GenomeRegionReadQualAnalyser analyser;
-        private final Thread expectedThread = Thread.currentThread();
+        // open it once per thread
+        final IndexedFastaSequenceFile refGenome;
+        final AtomicLong readTagGenerator;
 
-        GenomeRegionData(ChrBaseRegion genomeRegion, IndexedFastaSequenceFile refGenome)
+        // each region should only be processed by one thread
+        // we combine them all back at the end
+        final Map<ChrBaseRegion, GenomeRegionReadQualAnalyser> genomeRegionDataMap = new HashMap<>();
+
+        BaseQualityBinCounter mBaseQualityBinCounter;
+
+        public StatsCollectorThread(final String indexedRefGenomePath, final AtomicLong readTagGenerator, BaseQualityBinCounter baseQualityBinCounter)
         {
-            analyser = new GenomeRegionReadQualAnalyser(genomeRegion, new RefGenomeCache(refGenome, genomeRegion.chromosome()));
+            try
+            {
+                this.refGenome = new IndexedFastaSequenceFile(new File(indexedRefGenomePath));
+            }
+            catch(FileNotFoundException e)
+            {
+                throw new RuntimeException(e);
+            }
+            this.readTagGenerator = readTagGenerator;
+            this.mBaseQualityBinCounter = baseQualityBinCounter;
         }
 
-        void checkThread()
+        @Override
+        public void processRead(SAMRecord read, ChrBaseRegion baseRegion)
         {
-            Validate.isTrue(Thread.currentThread() == expectedThread);
+            if(read.getReadUnmappedFlag())
+            {
+                return;
+            }
+
+            GenomeRegionReadQualAnalyser analyser = getOrCreateGenomRegionData(baseRegion);
+            analyser.addReadToStats(read);
+        }
+
+        @Override
+        public void regionComplete(ChrBaseRegion baseRegion)
+        {
+            GenomeRegionReadQualAnalyser regionData = genomeRegionDataMap.get(baseRegion);
+            if(regionData != null)
+            {
+                regionData.completeRegion(readTagGenerator, this::processReadProfile, this::processReadBaseSupport);
+
+                // remove it to free up memory
+                genomeRegionDataMap.remove(baseRegion);
+            }
+        }
+
+        public GenomeRegionReadQualAnalyser getOrCreateGenomRegionData(ChrBaseRegion baseRegion)
+        {
+            return genomeRegionDataMap.computeIfAbsent(baseRegion, k -> new GenomeRegionReadQualAnalyser(k, new RefGenomeCache(refGenome, baseRegion.chromosome())));
+        }
+
+        public void processReadProfile(ReadProfile readProfile)
+        {
+            // write the read profiles
+            //mReadProfileFileWriter.write(readProfile);
+            mBaseQualityBinCounter.onReadProfile(readProfile);
+        }
+
+        public void processReadBaseSupport(ReadBaseSupport readBaseSupport)
+        {
+            // write the read bases supports
+            //mReadBaseSupportFileWriter.write(readBaseSupport);
+
+            mBaseQualityBinCounter.onReadBaseSupport(readBaseSupport);
         }
     }
 
-    final IndexedFastaSequenceFile refGenome;
-    final Consumer<ReadBaseSupport> readBaseSupportConsumer;
+    final List<StatsCollectorThread> mThreadHandlers = new ArrayList<>();
 
-    final Consumer<ReadProfile> readProfileConsumer;
-    final Map<ChrBaseRegion, GenomeRegionData> genomeRegionDataMap = new ConcurrentHashMap<>();
+    final AtomicLong mReadTagGenerator = new AtomicLong();
 
-    final AtomicLong readTagGenerator = new AtomicLong();
+    BaseQualityBinCounter mBaseQualityBinCounter = new BaseQualityBinCounter();
 
-    public ReadQualAnalyser(IndexedFastaSequenceFile refGenome,
-            Consumer<ReadProfile> readProfileConsumer,
-            Consumer<ReadBaseSupport> readBaseSupportConsumer)
+    BaseQualityBinCounter getBaseQualityBinCounter() { return mBaseQualityBinCounter; }
+
+    public ReadQualAnalyser()
     {
-        this.refGenome = refGenome;
-        this.readBaseSupportConsumer = readBaseSupportConsumer;
-        this.readProfileConsumer = readProfileConsumer;
     }
 
     public void processBam(final ErrorProfileConfig config) throws InterruptedException
     {
-        ErrorProfileUtils.processBamAsync(config, this::processRead, this::regionComplete);
+        ErrorProfileUtils.processBamAsync(config, () -> createThreadReadhandler(config.RefGenomeFile));
     }
 
-    private void processRead(SAMRecord read, ChrBaseRegion baseRegion)
+    private StatsCollectorThread createThreadReadhandler(final String refGenomeFilePath)
     {
-        if(read.getReadUnmappedFlag())
-        {
-            return;
-        }
-
-        GenomeRegionData regionData = getOrCreateGenomRegionData(baseRegion);
-        regionData.checkThread();
-        regionData.analyser.addReadToStats(read);
-    }
-
-    private void regionComplete(ChrBaseRegion baseRegion)
-    {
-        GenomeRegionData regionData = genomeRegionDataMap.get(baseRegion);
-        if(regionData != null)
-        {
-            regionData.checkThread();
-            regionData.analyser.completeRegion(readTagGenerator, readProfileConsumer, readBaseSupportConsumer);
-
-            // remove it to free up memory
-            genomeRegionDataMap.remove(baseRegion);
-        }
-    }
-
-    public GenomeRegionData getOrCreateGenomRegionData(ChrBaseRegion baseRegion)
-    {
-        return genomeRegionDataMap.computeIfAbsent(baseRegion, k -> new GenomeRegionData(k, refGenome));
+        StatsCollectorThread threadReadHandler = new StatsCollectorThread(refGenomeFilePath, mReadTagGenerator, mBaseQualityBinCounter);
+        mThreadHandlers.add(threadReadHandler);
+        return threadReadHandler;
     }
 }
