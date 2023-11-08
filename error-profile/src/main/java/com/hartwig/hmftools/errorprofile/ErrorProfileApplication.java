@@ -24,8 +24,6 @@ public class ErrorProfileApplication
 
     private final ErrorProfileConfig mConfig;
 
-    private VersionInfo mVersionInfo;
-
     ReadProfiler mReadProfiler = new ReadProfiler();
 
     ReadQualAnalyser mReadQualAnalyser;
@@ -49,12 +47,12 @@ public class ErrorProfileApplication
     {
         Instant start = Instant.now();
 
-        mVersionInfo = new VersionInfo("errorprofile.version");
+        VersionInfo versionInfo = new VersionInfo("errorprofile.version");
 
-        sLogger.info("ErrorProfile version: {}", mVersionInfo.version());
+        sLogger.info("ErrorProfile version: {}", versionInfo.version());
 
         sLogger.debug("build timestamp: {}, run args: {}",
-                mVersionInfo.buildTime().format(ISO_ZONED_DATE_TIME), String.join(" ", args));
+                versionInfo.buildTime().format(ISO_ZONED_DATE_TIME), String.join(" ", args));
 
         if(!mConfig.isValid())
         {
@@ -113,7 +111,7 @@ public class ErrorProfileApplication
         BaseQualityBinCountsFile.write(BaseQualityBinCountsFile.generateFilename(mConfig.OutputDir, mConfig.SampleId),
                 baseQualityBinCounter.getBaseQualityCountMap());
 
-        TileBaseQualityBinCountsFileWriter.write(TileBaseQualityBinCountsFileWriter.generateFilename(mConfig.OutputDir, mConfig.SampleId),
+        TileBaseQualityBinCountsFile.write(TileBaseQualityBinCountsFile.generateFilename(mConfig.OutputDir, mConfig.SampleId),
                 baseQualityBinCounter.getTileBaseQualityCountMap());
     }
 

@@ -17,4 +17,7 @@ public class ErrorProfileConstants
     public static double BASEQ_OUTLIER_CUTOFF = 4;
 
     public static int BASEQ_OUTLIER_MEDIAN_COUNT = 5;
+
+    // for bins with 0 counts, we use 0.1 instead
+    public static double SPARSE_BIN_ERROR_COUNT = 0.1;
 }

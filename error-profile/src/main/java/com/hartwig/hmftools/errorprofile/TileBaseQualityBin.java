@@ -21,23 +21,24 @@ public class TileBaseQualityBin
 
     public final short readPosition;
 
-    public final byte ref;
-    public final byte alt;
+    //public final byte ref;
+    //public final byte alt;
 
     public final byte rawBaseQuality;
 
     private final int hashCodeCache;
 
     public TileBaseQualityBin(final String flowcell, final int lane, final int tile, final boolean firstOfPair, final int readPosition,
-            final byte ref, final byte alt, final byte rawBaseQuality)
+            // final byte ref, final byte alt,
+            final byte rawBaseQuality)
     {
         this.flowcell = flowcell;
         this.lane = (short)lane;
         this.tile = (short)tile;
         this.firstOfPair = firstOfPair;
         this.readPosition = (short)readPosition;
-        this.ref = ref;
-        this.alt = alt;
+        //this.ref = ref;
+        //this.alt = alt;
         this.rawBaseQuality = rawBaseQuality;
         hashCodeCache = calcHashCode();
     }
@@ -72,14 +73,14 @@ public class TileBaseQualityBin
         {
             return false;
         }
-        if(ref != that.ref)
+        /*if(ref != that.ref)
         {
             return false;
         }
         if(alt != that.alt)
         {
             return false;
-        }
+        }*/
         if(rawBaseQuality != that.rawBaseQuality)
         {
             return false;
@@ -95,6 +96,16 @@ public class TileBaseQualityBin
 
     private int calcHashCode()
     {
+        final int PRIME = 109;
+        int result = flowcell.hashCode();
+        result = PRIME * result + (int) lane;
+        result = PRIME * result + (int) tile;
+        result = PRIME * result + (firstOfPair ? 1 : 0);
+        result = PRIME * result + (int) readPosition;
+        result = PRIME * result + (int) rawBaseQuality;
+        return result;
+
+        /*
         // usually 4 lanes
         int result = lane;
 
@@ -103,14 +114,15 @@ public class TileBaseQualityBin
         result = 2 * result + tileFirstDigit;
         result = 2 * result + (firstOfPair ? 1 : 0);
         result = 151 * result + readPosition;
-        result = 4 * result + baseToHashCode(ref);
-        result = 4 * result + baseToHashCode(alt);
+        //result = 4 * result + baseToHashCode(ref);
+        //result = 4 * result + baseToHashCode(alt);
         result = 991 * result + tile % 1000;
 
         // previous parts produce a linear hash code, we want to spread it out
         result = 61 * result + rawBaseQuality;
         result = 8191 * result + flowcell.hashCode();
         return result;
+         */
     }
 
     private static int baseToHashCode(byte base)

@@ -118,6 +118,8 @@ public class ReadProfiler
             readProfile.numLowQualAfterHomopolymer = numLowQualBases(baseQualities, readProfile.homopolymerEnd, baseQualities.length);
         }
 
+        /*
+        // this is a bit slow, we will skip it for now
         @Nullable TandemRepeat tandemRepeat = TandemRepeatFinder.findTandemRepeat(readString);
 
         if(tandemRepeat != null)
@@ -126,6 +128,7 @@ public class ReadProfiler
             readProfile.numLowQualBeforeTandemRepeat = numLowQualBases(baseQualities, 0, tandemRepeat.startIndex);
             readProfile.numLowQualAfterTandemRepeat = numLowQualBases(baseQualities, tandemRepeat.endIndex, baseQualities.length);
         }
+         */
 
         readProfile.insertSize = read.getInferredInsertSize();
 

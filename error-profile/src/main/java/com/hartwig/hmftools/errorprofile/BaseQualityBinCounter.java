@@ -26,33 +26,43 @@ public class BaseQualityBinCounter
     // https://stackoverflow.com/questions/58863128/unexpected-varhandle-performance-4x-slower-than-alternatives
     public static class Count
     {
-        private volatile int nonVariantCount = 0;
-        private volatile int realVariantCount = 0;
+        private volatile int errorCount = 0;
+        private volatile int totalCount = 0;
 
-        public int getNonVariantCount()
+        public int getErrorCount()
         {
-            return nonVariantCount;
+            return errorCount;
         }
 
-        public int getRealVariantCount()
+        public int getTotalCount()
         {
-            return realVariantCount;
+            return totalCount;
         }
 
-        void incrementNonVariantCount()
+        void incrementErrorCount()
         {
-            NON_VARIANT_COUNT_UPDATER.getAndAdd(this, 1);
+            ERROR_COUNT_UPDATER.getAndAdd(this, 1);
         }
 
-        void incrementRealVariantCount()
+        void incrementTotalCount()
         {
-            REAL_VARIANT_COUNT_UPDATER.getAndAdd(this, 1);
+            TOTAL_COUNT_UPDATER.getAndAdd(this, 1);
         }
 
-        private static final AtomicIntegerFieldUpdater<Count> NON_VARIANT_COUNT_UPDATER =
-                AtomicIntegerFieldUpdater.newUpdater(Count.class, "nonVariantCount");
-        private static final AtomicIntegerFieldUpdater<Count> REAL_VARIANT_COUNT_UPDATER =
-                AtomicIntegerFieldUpdater.newUpdater(Count.class, "realVariantCount");
+        void setErrorCount(int c)
+        {
+            ERROR_COUNT_UPDATER.set(this, c);
+        }
+
+        void setTotalCount(int c)
+        {
+            TOTAL_COUNT_UPDATER.set(this, c);
+        }
+
+        private static final AtomicIntegerFieldUpdater<Count> ERROR_COUNT_UPDATER =
+                AtomicIntegerFieldUpdater.newUpdater(Count.class, "errorCount");
+        private static final AtomicIntegerFieldUpdater<Count> TOTAL_COUNT_UPDATER =
+                AtomicIntegerFieldUpdater.newUpdater(Count.class, "totalCount");
     }
 
     public static class BaseCount
@@ -87,8 +97,8 @@ public class BaseQualityBinCounter
         }
     }
 
-    Map<BaseQualityBin, Count> mBaseQualityCountMap = new ConcurrentHashMap<>();
-    Map<TileBaseQualityBin, Count> mTileBaseQualityCountMap = new ConcurrentHashMap<>();
+    Map<BaseQualityBin, Count> mBaseQualityCountMap = new ConcurrentHashMap<>(100_000, 0.5f);
+    Map<TileBaseQualityBin, Count> mTileBaseQualityCountMap = new ConcurrentHashMap<>(200_000, 0.5f);
 
     Interner<String> mStringInterner = Interners.newStrongInterner();
 
@@ -126,7 +136,9 @@ public class BaseQualityBinCounter
 
             Validate.isTrue(posSupport.ref.length == 1);
 
-            if(posSupport.ref[0] == N || posSupport.alt == N)
+            byte ref = posSupport.ref[0];
+
+            if(ref == N || posSupport.alt == N)
             {
                 continue;
             }
@@ -140,7 +152,7 @@ public class BaseQualityBinCounter
 
             BaseQualityBin bqBin = new BaseQualityBin(readBaseSupport.read.getFirstOfPairFlag(),
                     posSupport.readPosition5To3,
-                    posSupport.ref[0],
+                    ref,
                     posSupport.alt,
                     posSupport.trinucleotideContext[0],
                     posSupport.trinucleotideContext[1],
@@ -153,24 +165,21 @@ public class BaseQualityBinCounter
                     tile,
                     readBaseSupport.read.getFirstOfPairFlag(),
                     posSupport.readPosition5To3,
-                    posSupport.ref[0],
-                    posSupport.alt,
+                    //ref,
+                    //posSupport.alt,
                     posSupport.baseQuality);
 
             Count c = mBaseQualityCountMap.computeIfAbsent(bqBin, (k) -> new Count());
             Count tileCount = mTileBaseQualityCountMap.computeIfAbsent(tileBaseQualityBin, (k) -> new Count());
 
             //Count tileCount = mFastTileBaseQualityCountMap.getOrCreate(tileBaseQualityBin);
+            c.incrementTotalCount();
+            tileCount.incrementTotalCount();
 
-            if(ErrorProfileCalcs.likelyRealVariant(posSupport))
+            if(ref != posSupport.alt && !BaseQualCalcs.likelyRealVariant(posSupport))
             {
-                c.incrementRealVariantCount();
-                tileCount.incrementRealVariantCount();
-            }
-            else
-            {
-                c.incrementNonVariantCount();
-                tileCount.incrementNonVariantCount();
+                c.incrementErrorCount();
+                tileCount.incrementErrorCount();
             }
         }
     }

@@ -33,12 +33,16 @@ public class ErrorProfileConfig
     public final String OutputDir;
 
     public final int MinMappingQuality;
+
+    public final double SamplingFraction;
+
     public final ValidationStringency BamStringency;
     public final int Threads;
 
     public final List<ChrBaseRegion> SpecificRegions;
 
     private static final String MIN_MAP_QUALITY = "min_map_quality";
+    private static final String SAMPLING_FRAC = "sampling_frac";
     public static final int DEFAULT_MIN_MAPPING_QUALITY = 50;
 
     public ErrorProfileConfig(final ConfigBuilder configBuilder) throws ParseException
@@ -49,6 +53,7 @@ public class ErrorProfileConfig
         OutputDir = parseOutputDir(configBuilder);
         Threads = parseThreads(configBuilder);
         MinMappingQuality = configBuilder.getInteger(MIN_MAP_QUALITY);
+        SamplingFraction = configBuilder.getDecimal(SAMPLING_FRAC);
         BamStringency = BamUtils.validationStringency(configBuilder);
         SpecificRegions = loadSpecificRegions(configBuilder.getValue(SPECIFIC_REGIONS));
     }
@@ -65,6 +70,8 @@ public class ErrorProfileConfig
 
         configBuilder.addInteger(
                 MIN_MAP_QUALITY, "Minimum mapping quality for an alignment to be used", DEFAULT_MIN_MAPPING_QUALITY);
+
+        configBuilder.addDecimal(SAMPLING_FRAC, "fractions of read to sample", 0.1);
 
         addThreadOptions(configBuilder);
         addValidationStringencyOption(configBuilder);

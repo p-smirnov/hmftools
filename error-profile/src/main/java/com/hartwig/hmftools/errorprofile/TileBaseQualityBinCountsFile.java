@@ -3,15 +3,19 @@ package com.hartwig.hmftools.errorprofile;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
+import com.hartwig.hmftools.common.utils.file.DelimFileReader;
 import com.hartwig.hmftools.common.utils.file.DelimFileWriter;
 
+import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.NotNull;
 
-public class TileBaseQualityBinCountsFileWriter
+public class TileBaseQualityBinCountsFile
 {
     enum Column
     {
@@ -20,11 +24,9 @@ public class TileBaseQualityBinCountsFileWriter
         tile,
         firstOfPair,
         readPosition,
-        ref,
-        alt,
         rawBaseQuality,
-        nonVariant,
-        realVariant
+        errorCount,
+        totalCount
     }
 
     private static String FILE_EXTENSION = ".errorprofile.tile_bq_bins.tsv.gz";
@@ -35,7 +37,7 @@ public class TileBaseQualityBinCountsFileWriter
     }
 
     /*
-            this.firstOfPair = firstOfPair;
+        this.firstOfPair = firstOfPair;
         this.readPosition = readPosition;
         this.ref = ref;
         this.alt = alt;
@@ -54,8 +56,8 @@ public class TileBaseQualityBinCountsFileWriter
                         .thenComparing(o -> o.tile)
                         .thenComparing(o -> !o.firstOfPair)
                         .thenComparingInt(o -> o.readPosition)
-                        .thenComparing(o -> o.ref)
-                        .thenComparing(o -> o.alt)
+                        //.thenComparing(o -> o.ref)
+                        //.thenComparing(o -> o.alt)
                         .thenComparingInt(o -> o.rawBaseQuality);
 
         // sort the bins
@@ -71,11 +73,42 @@ public class TileBaseQualityBinCountsFileWriter
             row.set(Column.tile, baseQualityBin.tile);
             row.set(Column.firstOfPair, baseQualityBin.firstOfPair);
             row.set(Column.readPosition, baseQualityBin.readPosition);
-            row.set(Column.ref, (char)baseQualityBin.ref);
-            row.set(Column.alt, (char)baseQualityBin.alt);
+            //row.set(Column.ref, (char)baseQualityBin.ref);
+            //row.set(Column.alt, (char)baseQualityBin.alt);
             row.set(Column.rawBaseQuality, baseQualityBin.rawBaseQuality);
-            row.set(Column.nonVariant, count.getNonVariantCount());
-            row.set(Column.realVariant, count.getRealVariantCount());
+            row.set(Column.errorCount, count.getErrorCount());
+            row.set(Column.totalCount, count.getTotalCount());
         });
+    }
+
+    public static Map<TileBaseQualityBin, BaseQualityBinCounter.Count> read(final String filename)
+    {
+        try(DelimFileReader reader = new DelimFileReader(filename))
+        {
+            final Map<TileBaseQualityBin, BaseQualityBinCounter.Count> baseQualityBinCountMap = new HashMap<>();
+
+            for(DelimFileReader.Row row : reader)
+            {
+                String flowcell = Objects.requireNonNull(row.get(Column.flowcell)).intern();
+                short lane = (short)Objects.requireNonNull(row.getInt(Column.lane)).intValue();
+                short tile = (short)Objects.requireNonNull(row.getInt(Column.tile)).intValue();
+                boolean firstOfPair = Objects.requireNonNull(row.getBoolean(Column.firstOfPair));
+                short readPosition = (short)Objects.requireNonNull(row.getInt(Column.readPosition)).intValue();
+                //byte ref = (byte)Objects.requireNonNull(row.getChar(Column.ref)).charValue();
+                //byte alt = (byte)Objects.requireNonNull(row.getChar(Column.alt)).charValue();
+                byte rawBaseQuality = (byte)Objects.requireNonNull(row.getInt(Column.rawBaseQuality)).intValue();
+
+                TileBaseQualityBin tileBaseQualityBin = new TileBaseQualityBin(flowcell, lane, tile, firstOfPair, readPosition,
+                        // ref, alt,
+                        rawBaseQuality);
+                BaseQualityBinCounter.Count count = new BaseQualityBinCounter.Count();
+                count.setErrorCount(Objects.requireNonNull(row.getInt(Column.errorCount)));
+                count.setTotalCount(Objects.requireNonNull(row.getInt(Column.totalCount)));
+
+                Validate.isTrue(baseQualityBinCountMap.put(tileBaseQualityBin, count) == null, "duplicate tile bin");
+            }
+
+            return baseQualityBinCountMap;
+        }
     }
 }

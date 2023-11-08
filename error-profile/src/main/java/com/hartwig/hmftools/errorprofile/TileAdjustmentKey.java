@@ -2,24 +2,24 @@ package com.hartwig.hmftools.errorprofile;
 
 import org.jetbrains.annotations.NotNull;
 
-public class TileAdjustmentUnit
+public class TileAdjustmentKey
 {
     public final @NotNull String flowcell;
 
     public final short lane;
     public final short tile;
 
-    public final byte rawBaseQuality;
-
     public final boolean firstOfPair;
 
-    public TileAdjustmentUnit(@NotNull final String flowcell, final short lane, final short tile, final byte rawBaseQuality, final boolean firstOfPair)
+    public final byte rawBaseQuality;
+
+    public TileAdjustmentKey(@NotNull final String flowcell, final short lane, final short tile, final boolean firstOfPair, final byte rawBaseQuality)
     {
         this.flowcell = flowcell;
         this.lane = lane;
         this.tile = tile;
-        this.rawBaseQuality = rawBaseQuality;
         this.firstOfPair = firstOfPair;
+        this.rawBaseQuality = rawBaseQuality;
     }
 
     @Override
@@ -29,12 +29,12 @@ public class TileAdjustmentUnit
         {
             return true;
         }
-        if(!(o instanceof TileAdjustmentUnit))
+        if(!(o instanceof TileAdjustmentKey))
         {
             return false;
         }
 
-        final TileAdjustmentUnit that = (TileAdjustmentUnit) o;
+        final TileAdjustmentKey that = (TileAdjustmentKey) o;
 
         if(lane != that.lane)
         {

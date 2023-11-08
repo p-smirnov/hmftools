@@ -12,8 +12,12 @@ public class TileBaseQualAdjustment
     public double rightSlope;
     public double rightIntersect;
 
+    // empirical base quality of the tile
+    public double empiricalBaseQuality;
+
     public TileBaseQualAdjustment(final double leftSlope, final double leftIntersect, final int midStart, final double midSlope,
-            final double midIntersect, final int rightStart, final double rightSlope, final double rightIntersect)
+            final double midIntersect, final int rightStart, final double rightSlope, final double rightIntersect,
+            final double empiricalBaseQuality)
     {
         this.leftSlope = leftSlope;
         this.leftIntersect = leftIntersect;
@@ -23,6 +27,7 @@ public class TileBaseQualAdjustment
         this.rightStart = rightStart;
         this.rightSlope = rightSlope;
         this.rightIntersect = rightIntersect;
+        this.empiricalBaseQuality = empiricalBaseQuality;
     }
 
     double calcBaseQualAdjustment(int position)

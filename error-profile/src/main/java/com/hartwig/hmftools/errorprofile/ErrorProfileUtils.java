@@ -1,28 +1,26 @@
 package com.hartwig.hmftools.errorprofile;
 
-import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.cram.ref.ReferenceSource;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.Random;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import com.hartwig.hmftools.common.genome.region.Strand;
 import com.hartwig.hmftools.common.region.ChrBaseRegion;
 
 import org.apache.commons.lang3.tuple.ImmutableTriple;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.lang3.tuple.Triple;
-import org.apache.logging.log4j.util.BiConsumer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.cram.ref.ReferenceSource;
 
 public class ErrorProfileUtils
 {
@@ -101,6 +99,13 @@ public class ErrorProfileUtils
     {
         int numBamReaders = Math.max(config.Threads - 1, 1);
         List<ChrBaseRegion> partitions = createPartitions(config);
+
+        Random rand = new Random(0);
+
+        // use sampling frac to filter
+        partitions = partitions.stream()
+                .filter(o -> rand.nextDouble() <= config.SamplingFraction)
+                .collect(Collectors.toList());
 
         SamReaderFactory readerFactory = SamReaderFactory.make().validationStringency(config.BamStringency);
         if(config.RefGenomeFile != null)

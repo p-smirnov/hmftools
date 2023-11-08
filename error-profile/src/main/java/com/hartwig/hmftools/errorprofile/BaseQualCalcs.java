@@ -1,7 +1,19 @@
 package com.hartwig.hmftools.errorprofile;
 
-public class ErrorProfileCalcs
+public class BaseQualCalcs
 {
+    public static double empiricalBaseQuality(double errorCount, double totalCount)
+    {
+        if(totalCount == 0)
+            return Double.NaN;
+
+        if(errorCount == 0)
+            return Double.POSITIVE_INFINITY;
+
+        double p = errorCount / totalCount;
+        return -10 * Math.log10(p);
+    }
+
     public static boolean likelyRealVariant(ReadBaseSupport.PositionSupport posSupport)
     {
         if(posSupport.ref.length == 1 && posSupport.alt == posSupport.ref[0])

@@ -91,14 +91,15 @@ public class BaseQualityBin
     @Override
     public int hashCode()
     {
+        final int PRIME = 109;
         int result = (firstOfPair ? 1 : 0);
-        result = 31 * result + readPosition;
-        result = 31 * result + (int) ref;
-        result = 31 * result + (int) alt;
-        result = 31 * result + (int) trinucleotideContext0;
-        result = 31 * result + (int) trinucleotideContext1;
-        result = 31 * result + (int) trinucleotideContext2;
-        result = 31 * result + rawBaseQuality;
+        result = PRIME * result + readPosition;
+        result = PRIME * result + (int) ref;
+        result = PRIME * result + (int) alt;
+        result = PRIME * result + (int) trinucleotideContext0;
+        result = PRIME * result + (int) trinucleotideContext1;
+        result = PRIME * result + (int) trinucleotideContext2;
+        result = PRIME * result + rawBaseQuality;
         return result;
     }
 }

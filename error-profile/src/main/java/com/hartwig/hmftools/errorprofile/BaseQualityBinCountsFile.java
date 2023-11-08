@@ -21,8 +21,8 @@ public class BaseQualityBinCountsFile
         alt,
         trinucleotideContext,
         rawBaseQuality,
-        nonVariant,
-        realVariant
+        errorCount,
+        totalCount
     }
 
     private static String FILE_EXTENSION = ".errorprofile.bq_bins.tsv.gz";
@@ -69,8 +69,8 @@ public class BaseQualityBinCountsFile
             row.set(Column.alt, (char)baseQualityBin.alt);
             row.set(Column.trinucleotideContext, baseQualityBin.getTrinucleotideContextString());
             row.set(Column.rawBaseQuality, baseQualityBin.rawBaseQuality);
-            row.set(Column.nonVariant, count.getNonVariantCount());
-            row.set(Column.realVariant, count.getRealVariantCount());
+            row.set(Column.errorCount, count.getErrorCount());
+            row.set(Column.totalCount, count.getTotalCount());
         });
     }
 
@@ -99,8 +99,8 @@ public class BaseQualityBinCountsFile
             row.set(Column.alt, (char)baseQualityBin.alt);
             row.set(Column.trinucleotideContext, baseQualityBin.getTrinucleotideContextString());
             row.set(Column.rawBaseQuality, baseQualityBin.rawBaseQuality);
-            row.set(Column.nonVariant, count.getNonVariantCount());
-            row.set(Column.realVariant, count.getRealVariantCount());
+            row.set(Column.errorCount, count.getErrorCount());
+            row.set(Column.totalCount, count.getTotalCount());
         });
     }
 }

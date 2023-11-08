@@ -3,7 +3,8 @@ package com.hartwig.hmftools.errorprofile.recal;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.hartwig.hmftools.errorprofile.TileAdjustmentUnit;
+import com.hartwig.hmftools.errorprofile.BaseQualCalcs;
+import com.hartwig.hmftools.errorprofile.TileAdjustmentKey;
 
 class TileBaseQualStats
 {
@@ -11,22 +12,20 @@ class TileBaseQualStats
     {
         int errorCount = 0;
         int totalCount = 0;
-
-        double empiricalBaseQuality()
-        {
-            double p = ((double)errorCount) / totalCount;
-            return -10 * Math.log10(p);
-        }
     }
 
-    public final TileAdjustmentUnit tileAdjustmentUnit;
+    public final TileAdjustmentKey tileAdjustmentKey;
     List<Count> positionCounts = new ArrayList<>();
 
     public TileBaseQualAdjustment adjustmentFunction = null;
 
-    TileBaseQualStats(final TileAdjustmentUnit tileAdjustmentUnit)
+    public List<TileBaseQualOutlier> outliers = null;
+
+    public double empiricalBaseQuality = Double.NaN;
+
+    TileBaseQualStats(final TileAdjustmentKey tileAdjustmentKey)
     {
-        this.tileAdjustmentUnit = tileAdjustmentUnit;
+        this.tileAdjustmentKey = tileAdjustmentKey;
     }
 
     void addToCount(int position, int errorCount, int totalCount)
