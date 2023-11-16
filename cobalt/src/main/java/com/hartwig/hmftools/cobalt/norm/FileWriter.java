@@ -77,7 +77,7 @@ public class FileWriter
                         SampleRegionData sampleRegionData = regionData.getSampleData(i);
 
                         writer.write(format("%s\t%s\t%d\t%d\t%.3f\t%.3f\t%.3f\t%.3f",
-                                sampleId, chromosome, regionData.Position, regionData.gcBucket(), regionData.mappability(),
+                                sampleId, chromosome, regionData.Position, sampleRegionData.GcBucketPanel, regionData.mappability(),
                                 sampleRegionData.GcRatioPanel, sampleRegionData.ReadDepth, sampleRegionData.adjustedGcRatio()));
                         writer.newLine();
                     }

@@ -11,7 +11,6 @@ public class RegionData
     public final int Position;
 
     // reference data
-    private int mGcBucket;
     private double mMappability;
 
     // calculate values
@@ -22,17 +21,14 @@ public class RegionData
     public RegionData(int position)
     {
         Position = position;
-        mGcBucket = 0;
         mMappability = 0;
         mSampleRegionData = Lists.newArrayList();
     }
 
-    public int gcBucket() { return mGcBucket; }
     public double mappability() { return mMappability; }
 
-    public void setGcProfile(int gcBucket, double mappability)
+    public void setGcProfile(double mappability)
     {
-        mGcBucket = gcBucket;
         mMappability = mappability;
     }
 
@@ -50,6 +46,6 @@ public class RegionData
 
     public String toString()
     {
-        return format("%d: gcBucket(%d) relEnrichment(%.4f)", Position, mGcBucket, mRelativeEnrichment);
+        return format("%d: relEnrichment(%.4f)", Position, mRelativeEnrichment);
     }
 }

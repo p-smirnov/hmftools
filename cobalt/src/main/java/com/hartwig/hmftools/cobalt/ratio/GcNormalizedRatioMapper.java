@@ -19,13 +19,16 @@ public class GcNormalizedRatioMapper implements RatioMapper
     private static final int MIN_BUCKET = 20;
     private static final int MAX_BUCKET = 60;
 
+    private final boolean mUseReadGcContent;
+
     private Table mGCMedianReadDepth;
     private double mSampleMedianReadDepth;
     private double mSampleMeanReadDepth;
 
     // apply gc normalisation, the input ratios must have chromosome, position, ratio, gcBucket, isMappable
-    public GcNormalizedRatioMapper()
+    public GcNormalizedRatioMapper(boolean useReadGcContent)
     {
+        mUseReadGcContent = useReadGcContent;
     }
 
     @Override
@@ -33,12 +36,17 @@ public class GcNormalizedRatioMapper implements RatioMapper
     {
         CB_LOGGER.info("Applying ratio gc normalization");
 
-        // add a gc bucket column if not already have one
-        if (!inputRatios.containsColumn(CobaltColumns.GC_BUCKET))
+        if(inputRatios.containsColumn(CobaltColumns.GC_BUCKET))
         {
-            inputRatios.addColumns(inputRatios.doubleColumn(CobaltColumns.GC_CONTENT)
-                    .multiply(100).round().asIntColumn().setName(CobaltColumns.GC_BUCKET));
+            // we want to make sure we use correct GC bucket, so always remake it
+            inputRatios.removeColumns(CobaltColumns.GC_BUCKET);
         }
+
+        // add a gc bucket column
+        String gcColumn = mUseReadGcContent ? CobaltColumns.READ_GC_CONTENT : CobaltColumns.GC_CONTENT;
+
+        inputRatios.addColumns(inputRatios.doubleColumn(gcColumn)
+                    .multiply(100).round().asIntColumn().setName(CobaltColumns.GC_BUCKET));
 
         // create a gc normalisation df
 

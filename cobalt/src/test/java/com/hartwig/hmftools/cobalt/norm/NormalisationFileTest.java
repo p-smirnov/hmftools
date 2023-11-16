@@ -39,7 +39,7 @@ public class NormalisationFileTest
         addTargetRegions(namedBedRecords, chrRegionData);
 
         List<RegionData> allRegions = Lists.newArrayList();
-        chrRegionData.values().forEach(x -> allRegions.addAll(x));
+        chrRegionData.values().forEach(allRegions::addAll);
 
         assertEquals(10, allRegions.size());
         int index = 0;
@@ -88,8 +88,8 @@ public class NormalisationFileTest
     private static RegionData createRegion(int position, int gcBucket, double mappability, int readCount, double gcRatioPanel)
     {
         RegionData regionData = new RegionData(position);
-        regionData.setGcProfile(gcBucket, mappability);
-        regionData.addSampleRegionData(new SampleRegionData(readCount, gcRatioPanel, 1));
+        regionData.setGcProfile(mappability);
+        regionData.addSampleRegionData(new SampleRegionData(readCount, gcRatioPanel, 1, gcBucket));
         return regionData;
     }
 

@@ -37,7 +37,7 @@ public class Normaliser
         // calculate interpolated median read count per GC bucket across filtered regions
 
         List<Double> sampleReadDepths = new ArrayList<>();
-        double sampleReadCountTotal = 0;
+        double sampleReadDepthTotal = 0;
 
         Map<Integer, List<Double>> gcBucketReadDepths = new HashMap<>();
 
@@ -57,20 +57,21 @@ public class Normaliser
                 if(!useRegion(regionData, sampleRegionData))
                     continue;
 
-                double readCount = sampleRegionData.ReadDepth;
-                sampleReadDepths.add(readCount);
-                sampleReadCountTotal += readCount;
+                double readDepth = sampleRegionData.ReadDepth;
+                int gcBucket = sampleRegionData.GcBucketPanel;
+                sampleReadDepths.add(readDepth);
+                sampleReadDepthTotal += readDepth;
 
-                List<Double> bucketDepths = gcBucketReadDepths.computeIfAbsent(regionData.gcBucket(), k -> new ArrayList<>());
+                List<Double> bucketDepths = gcBucketReadDepths.computeIfAbsent(gcBucket, k -> new ArrayList<>());
 
-                bucketDepths.add(readCount);
+                bucketDepths.add(readDepth);
             }
         }
 
         if(sampleReadDepths.isEmpty())
             return NormCalcData.INVALID;
 
-        double sampleMeanReadCount = sampleReadCountTotal / sampleReadDepths.size();
+        double sampleMeanReadCount = sampleReadDepthTotal / sampleReadDepths.size();
         double sampleMedianReadCount = median(sampleReadDepths);
 
         Map<Integer,Double> gcBucketMedians = new HashMap<>();
@@ -97,7 +98,7 @@ public class Normaliser
             {
                 SampleRegionData sampleRegionData = regionData.getSampleData(sampleIndex);
 
-                Double gcBucketMedian = normCalcData.GcBucketMedians.get(regionData.gcBucket());
+                Double gcBucketMedian = normCalcData.GcBucketMedians.get(sampleRegionData.GcBucketPanel);
 
                 if(gcBucketMedian == null || gcBucketMedian == 0)
                     continue;
@@ -122,7 +123,7 @@ public class Normaliser
         if(sampleRegionData.ReadDepth < 0)
             return false;
 
-        return regionData.gcBucket() >= GC_BUCKET_MIN && regionData.gcBucket() <= GC_BUCKET_MAX;
+        return sampleRegionData.GcBucketPanel >= GC_BUCKET_MIN && sampleRegionData.GcBucketPanel <= GC_BUCKET_MAX;
     }
 
     public static void calcRelativeEnrichment(final Map<String,List<RegionData>> chrRegionData, double minEnrichmentRatio)

@@ -8,14 +8,17 @@ public class SampleRegionData
     public final double GcRatioPanel;
     public final double GcRatioWgs;
 
+    public final int GcBucketPanel;
+
     // calculated values
     private double mAdjustedGcRatio;
 
-    public SampleRegionData(final double readDepth, final double gcRatioPanel, final double gcRatioWgs)
+    public SampleRegionData(final double readDepth, final double gcRatioPanel, final double gcRatioWgs, final int gcBucketPanel)
     {
         ReadDepth = readDepth;
         GcRatioPanel = gcRatioPanel;
         GcRatioWgs = gcRatioWgs;
+        GcBucketPanel = gcBucketPanel;
         mAdjustedGcRatio = 0;
     }
 

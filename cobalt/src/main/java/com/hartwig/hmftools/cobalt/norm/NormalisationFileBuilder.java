@@ -9,7 +9,6 @@ import static com.hartwig.hmftools.cobalt.norm.NormConstants.MIN_ENRICHMENT_RATI
 import static com.hartwig.hmftools.cobalt.norm.Normaliser.calcRelativeEnrichment;
 import static com.hartwig.hmftools.cobalt.norm.Normaliser.calcSampleAdjustedRatios;
 import static com.hartwig.hmftools.common.genome.bed.NamedBedFile.readBedFile;
-import static com.hartwig.hmftools.common.genome.gc.GCBucket.calcGcBucket;
 import static com.hartwig.hmftools.common.utils.config.ConfigUtils.convertWildcardSamplePath;
 import static com.hartwig.hmftools.common.utils.config.ConfigUtils.setLogLevel;
 
@@ -119,7 +118,7 @@ public class NormalisationFileBuilder
             addTargetRegions(namedBedRecords, mChrRegionData);
 
             CB_LOGGER.info("loaded {} target regions from file({})",
-                    mChrRegionData.values().stream().mapToInt(x -> x.size()).sum(), bedFile);
+                    mChrRegionData.values().stream().mapToInt(List::size).sum(), bedFile);
         }
         catch (IOException e)
         {
@@ -137,7 +136,7 @@ public class NormalisationFileBuilder
             {
                 GCProfile gcProfile = mGcProfileCache.findGcProfile(chromosome, regionData.Position);
                 if(gcProfile != null)
-                    regionData.setGcProfile(calcGcBucket(gcProfile.gcContent()), gcProfile.mappablePercentage());
+                    regionData.setGcProfile(gcProfile.mappablePercentage());
             }
         }
     }

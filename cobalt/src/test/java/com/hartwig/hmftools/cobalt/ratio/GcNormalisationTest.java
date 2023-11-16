@@ -50,7 +50,45 @@ public class GcNormalisationTest
 
         (new ChromosomePositionCodec()).addEncodedChrPosColumn(ratios, false);
 
-        ratios = new GcNormalizedRatioMapper().mapRatios(ratios);
+        ratios = new GcNormalizedRatioMapper(false).mapRatios(ratios);
+
+        // System.out.println(ratios);
+
+        assertEquals(6, ratios.rowCount());
+        assertRatio(ratios, 0,1001, 0.0);
+        assertRatio(ratios, 1,2001, 0.6896552);
+        assertRatio(ratios, 2,11001, 0.5517241);
+        assertRatio(ratios, 3,12001, 1.1793103);
+        assertRatio(ratios, 4,23001, 0.062069);
+        assertRatio(ratios, 5,7001, 0.275862);
+    }
+
+    @Test
+    public void testGcNormaliserReadGc()
+    {
+        Table ratios = Table.create(
+                StringColumn.create(CobaltColumns.CHROMOSOME),
+                IntColumn.create(CobaltColumns.POSITION),
+                DoubleColumn.create(CobaltColumns.RATIO),
+                DoubleColumn.create(CobaltColumns.GC_CONTENT),
+                BooleanColumn.create(CobaltColumns.IS_MAPPABLE),
+                BooleanColumn.create(CobaltColumns.IS_AUTOSOME));
+
+        addReadRatio(ratios, "chr1", 1001, 0, 0.45, true);
+        addReadRatio(ratios, "chr1", 2001, 5, 0.451, true);
+        addReadRatio(ratios, "chr1", 11001, 4.0, 0.45, true);
+        addReadRatio(ratios, "chr1", 12001, 19, 0.501, true);
+        addReadRatio(ratios, "chr2", 23001, 1, 0.496, true);
+        addReadRatio(ratios, "chr2", 24001, 2, 0.19, true); // gc bucket too low
+        addReadRatio(ratios, "chr2", 25001, 3, 0.61, true); // gc bucket too high
+        addReadRatio(ratios, "chr3", 8001, 2, 0.45, false); // unmappable
+        addReadRatio(ratios, "chrX", 7001, 2, 0.45, true); // allosome, not included in median calc
+
+        (new ChromosomePositionCodec()).addEncodedChrPosColumn(ratios, false);
+
+        // rename to to read gc content instead
+        ratios.column(CobaltColumns.GC_CONTENT).setName(CobaltColumns.READ_GC_CONTENT);
+        ratios = new GcNormalizedRatioMapper(true).mapRatios(ratios);
 
         // System.out.println(ratios);
 

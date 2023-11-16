@@ -4,6 +4,7 @@ import static java.lang.Math.floor;
 
 import static com.hartwig.hmftools.cobalt.CobaltConfig.CB_LOGGER;
 import static com.hartwig.hmftools.cobalt.norm.NormConstants.REGION_SIZE;
+import static com.hartwig.hmftools.common.genome.gc.GCBucket.calcGcBucket;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -136,11 +137,12 @@ public class DataLoader
 
                     if(cobaltRatio != null && cobaltRatio.position() == region.Position)
                     {
-                        region.addSampleRegionData(new SampleRegionData(cobaltRatio.tumorReadDepth(), cobaltRatio.tumorGCRatio(), wgsGcRatio));
+                        region.addSampleRegionData(new SampleRegionData(cobaltRatio.tumorReadDepth(), cobaltRatio.tumorGCRatio(), wgsGcRatio,
+                                calcGcBucket(cobaltRatio.tumorGcContent())));
                     }
                     else
                     {
-                        region.addSampleRegionData(new SampleRegionData(0, 0, wgsGcRatio));
+                        region.addSampleRegionData(new SampleRegionData(0, 0, wgsGcRatio, -1));
                     }
                 }
             }

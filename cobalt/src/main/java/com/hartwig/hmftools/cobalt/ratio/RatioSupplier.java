@@ -101,7 +101,7 @@ public class RatioSupplier
                 readRatios = new TargetedRatioMapper(targetRegionEnrichment, chromosomePosCodec).mapRatios(readRatios);
             }
 
-            gcNormalizedRatioMapper = new GcNormalizedRatioMapper();
+            gcNormalizedRatioMapper = new GcNormalizedRatioMapper(targetRegionEnrichment != null);
             readRatios = gcNormalizedRatioMapper.mapRatios(readRatios);
 
             switch (sparseBucketPolicy)
