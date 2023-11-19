@@ -6,6 +6,7 @@ import static com.hartwig.hmftools.common.samtools.SamRecordUtils.firstInPair;
 import java.util.List;
 import java.util.function.Consumer;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.hartwig.hmftools.common.region.ChrBaseRegion;
 
@@ -44,6 +45,7 @@ public class BamSlicer
 
     public void setKeepUnmapped() { mKeepUnmapped = true; }
     public void setKeepHardClippedSecondaries() { mKeepHardClippedSecondaries = true; }
+    public boolean getConsumerHalt() { return mConsumerHalt; }
 
     public void haltProcessing() { mConsumerHalt = true; }
 
@@ -245,7 +247,8 @@ public class BamSlicer
         return queryIntervals;
     }
 
-    private boolean passesFilters(final SAMRecord record)
+    @VisibleForTesting
+    public boolean passesFilters(final SAMRecord record)
     {
         if(record.getMappingQuality() < mMinMappingQuality)
             return false;

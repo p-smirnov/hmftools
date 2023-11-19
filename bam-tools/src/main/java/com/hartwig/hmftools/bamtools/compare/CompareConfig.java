@@ -14,6 +14,7 @@ import static com.hartwig.hmftools.common.utils.config.ConfigUtils.addLoggingOpt
 
 import java.util.List;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.hartwig.hmftools.common.genome.refgenome.RefGenomeVersion;
 import com.hartwig.hmftools.common.region.SpecificRegions;
@@ -83,6 +84,26 @@ public class CompareConfig
         Threads = parseThreads(configBuilder);
 
         LogReadIds = parseLogReadIds(configBuilder);
+    }
+
+    @VisibleForTesting
+    public CompareConfig(int maxPartitionReads, boolean ignoreAlterations)
+    {
+        OutputFile = null;
+        RefBamFile = null;
+        NewBamFile = null;
+        RefGenomeFile = null;
+        RefGenVersion = RefGenomeVersion.V37;
+        PartitionSize = DEFAULT_CHR_PARTITION_SIZE;
+        MaxPartitionReads = maxPartitionReads;
+        ExcludeRegions = false;
+        IgnoreDupDiffs = false;
+        IgnoreAlterations = ignoreAlterations;
+        Threads = 0;
+        LogReadIds = Lists.newArrayList();
+
+        // TODO: test
+        SpecificChrRegions = new SpecificRegions();
     }
 
     public static void addConfig(final ConfigBuilder configBuilder)

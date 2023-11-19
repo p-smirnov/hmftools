@@ -23,42 +23,42 @@ import com.hartwig.hmftools.common.region.ExcludedRegions;
 import com.hartwig.hmftools.common.samtools.BamSlicer;
 import com.hartwig.hmftools.common.region.ChrBaseRegion;
 
+import org.apache.commons.lang3.NotImplementedException;
+
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SamReader;
 
 public class PartitionReader
 {
     private final CompareConfig mConfig;
     private final ChrBaseRegion mRegion;
 
-    private final SamReader mRefSamReader;
-    private final SamReader mNewSamReader;
+    private final ISAMRecordProvider mRefRecordProvider;
+    private final ISAMRecordProvider mNewRecordProvider;
     private final BamSlicer mBamSlicer;
 
     private final Queue<List<SAMRecord>> mRefReads;
     private List<SAMRecord> mCurrentRefPosReads;
-    private final ReadWriter mReadWriter;
+    private final IDiffConsumer mDiffConsumer;
     private boolean mLogReadIds;
 
     private final ChrBaseRegion mExcludedRegion;
     private final Statistics mStats;
 
-    public PartitionReader(
-            final ChrBaseRegion region, final CompareConfig config, final SamReader refSamReader, final SamReader newSamReader,
-            final ReadWriter readWriter)
+    public PartitionReader(final ChrBaseRegion region, final CompareConfig config, final ISAMRecordProvider refRecordProvider, final ISAMRecordProvider newRecordProvider, final IDiffConsumer diffConsumer)
     {
         mConfig = config;
         mRegion = region;
-        mReadWriter = readWriter;
+        mDiffConsumer = diffConsumer;
 
-        mRefSamReader = refSamReader;
-        mNewSamReader = newSamReader;
+        mRefRecordProvider = refRecordProvider;
+        mNewRecordProvider = newRecordProvider;
         mBamSlicer = new BamSlicer(0, true, true, true);
         mBamSlicer.setKeepUnmapped();
 
         mRefReads = Queues.newArrayDeque();
         mCurrentRefPosReads = null;
 
+        // TODO: Do we really want to exclude this region?
         ChrBaseRegion excludedRegion = ExcludedRegions.getPolyGRegion(mConfig.RefGenVersion);
         mExcludedRegion = mRegion.overlaps(excludedRegion) ? excludedRegion : null;
 
@@ -72,15 +72,14 @@ public class PartitionReader
     {
         BT_LOGGER.debug("processing region({})", mRegion);
 
-        mBamSlicer.slice(mRefSamReader, Lists.newArrayList(mRegion), this::processRefRecord);
-
-        mBamSlicer.slice(mNewSamReader, Lists.newArrayList(mRegion), this::processNewRecord);
+        mRefRecordProvider.processSlice(mBamSlicer, mRegion, this::processRefRecord);
+        mNewRecordProvider.processSlice(mBamSlicer, mRegion, this::processNewRecord);
 
         while(!mRefReads.isEmpty())
         {
             // write remaining records
             List<SAMRecord> refReads = mRefReads.remove();
-            refReads.forEach(x -> mReadWriter.writeComparison(x, REF_ONLY, null));
+            refReads.forEach(x -> mDiffConsumer.addDiff(new DiffRecord(x, REF_ONLY, null)));
             mStats.DiffCount += refReads.size();
         }
 
@@ -155,7 +154,7 @@ public class PartitionReader
 
         if(mRefReads.isEmpty())
         {
-            mReadWriter.writeComparison(newRead, NEW_ONLY, null);
+            mDiffConsumer.addDiff(new DiffRecord(newRead, NEW_ONLY, null));
             ++mStats.DiffCount;
             return;
         }
@@ -174,16 +173,23 @@ public class PartitionReader
                 if(refPosStart >= newRead.getAlignmentStart())
                     break;
 
-                refReads.forEach(x -> mReadWriter.writeComparison(x, REF_ONLY, null));
+                refReads.forEach(x -> mDiffConsumer.addDiff(new DiffRecord(x, REF_ONLY, null)));
                 mStats.DiffCount += refReads.size();
                 mRefReads.remove();
+            }
+
+            if(mRefReads.isEmpty())
+            {
+                mDiffConsumer.addDiff(new DiffRecord(newRead, NEW_ONLY, null));
+                ++mStats.DiffCount;
+                return;
             }
         }
 
         // write if before the current ref read
         if(newRead.getAlignmentStart() < refPosStart)
         {
-            mReadWriter.writeComparison(newRead, NEW_ONLY, null);
+            mDiffConsumer.addDiff(new DiffRecord(newRead, NEW_ONLY, null));
             ++mStats.DiffCount;
             return;
         }
@@ -196,6 +202,7 @@ public class PartitionReader
 
             if(readsMatch(refRead, newRead))
             {
+                // TODO: refactor
                 refReads.remove(refIndex);
                 if(refReads.isEmpty())
                     mRefReads.remove();
@@ -208,7 +215,7 @@ public class PartitionReader
         }
 
         // no match
-        mReadWriter.writeComparison(newRead, NEW_ONLY, null);
+        mDiffConsumer.addDiff(new DiffRecord(newRead, NEW_ONLY, null));
         ++mStats.DiffCount;
     }
 
@@ -232,7 +239,11 @@ public class PartitionReader
             return true;
 
         if(mConfig.IgnoreDupDiffs && abs(flags1 - flags2) == DUPLICATE_READ.intValue())
-            return true;
+        {
+            // TODO: test
+            throw new NotImplementedException("TODO");
+//            return true;
+        }
 
         return false;
     }
@@ -262,7 +273,10 @@ public class PartitionReader
 
         if(!read1.getCigarString().equals(read2.getCigarString()))
         {
-            diffs.add(format("cigar(%s/%s)", read1.getCigarString(), read2.getCigarString()));
+            // TODO: test
+            throw new NotImplementedException("TODO");
+
+//            diffs.add(format("cigar(%s/%s)", read1.getCigarString(), read2.getCigarString()));
         }
 
         if(read1.getFlags() != read2.getFlags())
@@ -287,24 +301,33 @@ public class PartitionReader
             {
                 if(!readAttr1.equals(readAttr2))
                 {
-                    diffs.add(format("attrib_%s(%s/%s)", attribute, readAttr1, readAttr2));
+                    // TODO: test
+                    throw new NotImplementedException("TODO");
+
+//                    diffs.add(format("attrib_%s(%s/%s)", attribute, readAttr1, readAttr2));
                 }
             }
             else if(readAttr1 == null && readAttr2 != null)
             {
-                diffs.add(format("attrib_%s(missing/%s)", attribute, readAttr2));
+                // TODO: test
+                throw new NotImplementedException("TODO");
+
+//                diffs.add(format("attrib_%s(missing/%s)", attribute, readAttr2));
             }
             else if(readAttr1 != null && readAttr2 == null)
-            {
                 diffs.add(format("attrib_%s(%s/missing)", attribute, readAttr1));
-            }
         }
 
         if(diffs.isEmpty())
-            return;
+        {
+            // TODO: test
+            throw new NotImplementedException("TODO");
+
+//            return;
+        }
 
         ++mStats.DiffCount;
-        mReadWriter.writeComparison(read1, VALUE, diffs);
+        mDiffConsumer.addDiff(new DiffRecord(read1, VALUE, diffs));
     }
 
     private static boolean readsMatch(final SAMRecord read1, final SAMRecord read2)
@@ -319,13 +342,9 @@ public class PartitionReader
             return false;
 
         if(read1.getReadPairedFlag())
-        {
             return read1.getFirstOfPairFlag() == read2.getFirstOfPairFlag();
-        }
-        else
-        {
-            return true;
-        }
+
+        return true;
     }
 
     private boolean excludeRead(final SAMRecord read)

@@ -27,7 +27,10 @@ import com.hartwig.hmftools.common.genome.region.GenomeRegions;
 import com.hartwig.hmftools.common.utils.file.FileDelimiters;
 import com.hartwig.hmftools.common.utils.file.FileReaderUtils;
 
+import org.checkerframework.checker.units.qual.C;
 import org.jetbrains.annotations.NotNull;
+
+import htsjdk.samtools.SAMRecord;
 
 public class ChrBaseRegion implements Cloneable, Comparable<ChrBaseRegion>
 {
@@ -85,6 +88,15 @@ public class ChrBaseRegion implements Cloneable, Comparable<ChrBaseRegion>
             return false;
 
         return positionsOverlap(mStart, mEnd, other.mStart, other.mEnd);
+    }
+
+    public boolean overlapsAlignment(final SAMRecord record)
+    {
+        if (record.getReadUnmappedFlag())
+            return false;
+
+        ChrBaseRegion alignment = new ChrBaseRegion(record.getReferenceName(), record.getAlignmentStart(), record.getAlignmentEnd());
+        return overlaps(alignment);
     }
 
     public boolean containsPosition(int position) { return positionWithin(position, start(), end()); }

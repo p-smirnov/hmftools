@@ -16,7 +16,7 @@ import com.hartwig.hmftools.common.samtools.SupplementaryReadData;
 
 import htsjdk.samtools.SAMRecord;
 
-public class ReadWriter
+public class ReadWriter implements IDiffConsumer
 {
     private final BufferedWriter mWriter;
 
@@ -46,25 +46,27 @@ public class ReadWriter
         }
     }
 
-    public synchronized void writeComparison(final SAMRecord read, final MismatchType mismatchType, final List<String> diffList)
+    @Override
+    public synchronized void addDiff(final DiffRecord diff)
     {
         try
         {
-            String diffDetails = diffList != null ? diffList.stream().collect(Collectors.joining(";")) : "";
+            String diffDetails = diff.DiffList != null ? diff.DiffList.stream().collect(Collectors.joining(";")) : "";
             mWriter.write(format("%s\t%s\t%d\t%s\t%s\t%s\t%d",
-                    read.getReadName(), read.getReferenceName(), read.getAlignmentStart(), mismatchType, diffDetails,
-                    read.getMateReferenceName(), read.getMateAlignmentStart()));
+                    diff.Read.getReadName(), diff.Read.getReferenceName(), diff.Read.getAlignmentStart(), diff.Type, diffDetails,
+                    diff.Read.getMateReferenceName(), diff.Read.getMateAlignmentStart()));
 
             mWriter.write(format("\t%s\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s",
-                    read.getCigarString(), read.getFlags(), read.getMappingQuality(), read.getReadPairedFlag(), read.getFirstOfPairFlag(),
-                    read.getReadNegativeStrandFlag(), read.getDuplicateReadFlag(), read.getSupplementaryAlignmentFlag(),
-                    read.hasAttribute(SUPPLEMENTARY_ATTRIBUTE) ? SupplementaryReadData.extractAlignment(read).asCsv() : "N/A"));
+                    diff.Read.getCigarString(), diff.Read.getFlags(), diff.Read.getMappingQuality(), diff.Read.getReadPairedFlag(), diff.Read.getFirstOfPairFlag(),
+                    diff.Read.getReadNegativeStrandFlag(), diff.Read.getDuplicateReadFlag(), diff.Read.getSupplementaryAlignmentFlag(),
+                    diff.Read.hasAttribute(SUPPLEMENTARY_ATTRIBUTE) ? SupplementaryReadData.extractAlignment(diff.Read).asCsv() : "N/A"));
 
             mWriter.newLine();
         }
         catch(IOException e)
         {
-            BT_LOGGER.error("failed to write BAM comparison file: {}", e.toString());
+            BT_LOGGER.error("failed to write to BAM comparison file: {}", e.toString());
+            System.exit(1);
         }
     }
 
