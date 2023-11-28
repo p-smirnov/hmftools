@@ -52,6 +52,7 @@ public class PartitionReader
 
         mRefRecordProvider = refRecordProvider;
         mNewRecordProvider = newRecordProvider;
+        // TODO: what about supps?
         mBamSlicer = new BamSlicer(0, true, true, true);
         mBamSlicer.setKeepUnmapped();
 
