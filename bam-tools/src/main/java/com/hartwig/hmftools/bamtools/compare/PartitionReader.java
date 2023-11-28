@@ -58,7 +58,6 @@ public class PartitionReader
         mRefReads = Queues.newArrayDeque();
         mCurrentRefPosReads = null;
 
-        // TODO: Do we really want to exclude this region?
         ChrBaseRegion excludedRegion = ExcludedRegions.getPolyGRegion(mConfig.RefGenVersion);
         mExcludedRegion = mRegion.overlaps(excludedRegion) ? excludedRegion : null;
 
@@ -202,7 +201,6 @@ public class PartitionReader
 
             if(readsMatch(refRead, newRead))
             {
-                // TODO: refactor
                 refReads.remove(refIndex);
                 if(refReads.isEmpty())
                     mRefReads.remove();
@@ -239,27 +237,15 @@ public class PartitionReader
             return true;
 
         if(mConfig.IgnoreDupDiffs && abs(flags1 - flags2) == DUPLICATE_READ.intValue())
-        {
-            // TODO: test
-            throw new NotImplementedException("TODO");
-//            return true;
-        }
+            return true;
 
         return false;
     }
 
     private void checkReadDetails(final SAMRecord read1, final SAMRecord read2)
     {
-        if(read1.getInferredInsertSize() == read2.getInferredInsertSize()
-        && read1.getMappingQuality() == read2.getMappingQuality()
-        && flagsMatch(read1.getFlags(), read2.getFlags())
-        && read1.getCigarString().equals(read2.getCigarString()))
-        {
-            // assume most reads match to avoid creating a array for the diffs
-            return;
-        }
-
-        List<String> diffs = Lists.newArrayListWithExpectedSize(4);
+        // NOTE: there was a bug here not checking attributes, this seems like optimisation overkill
+        List<String> diffs = Lists.newArrayListWithExpectedSize(5 + KEY_ATTRIBUTES.size());
 
         if(read1.getInferredInsertSize() != read2.getInferredInsertSize())
         {
@@ -273,10 +259,7 @@ public class PartitionReader
 
         if(!read1.getCigarString().equals(read2.getCigarString()))
         {
-            // TODO: test
-            throw new NotImplementedException("TODO");
-
-//            diffs.add(format("cigar(%s/%s)", read1.getCigarString(), read2.getCigarString()));
+            diffs.add(format("cigar(%s/%s)", read1.getCigarString(), read2.getCigarString()));
         }
 
         if(read1.getFlags() != read2.getFlags())
@@ -295,35 +278,30 @@ public class PartitionReader
             String readAttr2 = read2.getStringAttribute(attribute);
 
             if(readAttr1 == null && readAttr2 == null)
+            {
                 continue;
+            }
 
             if(readAttr1 != null && readAttr2 != null)
             {
                 if(!readAttr1.equals(readAttr2))
                 {
-                    // TODO: test
-                    throw new NotImplementedException("TODO");
-
-//                    diffs.add(format("attrib_%s(%s/%s)", attribute, readAttr1, readAttr2));
+                    diffs.add(format("attrib_%s(%s/%s)", attribute, readAttr1, readAttr2));
                 }
             }
             else if(readAttr1 == null && readAttr2 != null)
             {
-                // TODO: test
-                throw new NotImplementedException("TODO");
-
-//                diffs.add(format("attrib_%s(missing/%s)", attribute, readAttr2));
+                diffs.add(format("attrib_%s(missing/%s)", attribute, readAttr2));
             }
             else if(readAttr1 != null && readAttr2 == null)
+            {
                 diffs.add(format("attrib_%s(%s/missing)", attribute, readAttr1));
+            }
         }
 
         if(diffs.isEmpty())
         {
-            // TODO: test
-            throw new NotImplementedException("TODO");
-
-//            return;
+            return;
         }
 
         ++mStats.DiffCount;

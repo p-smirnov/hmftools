@@ -1,10 +1,13 @@
 package com.hartwig.hmftools.bamtools.compare;
 
+import static java.lang.String.format;
+
 import static com.hartwig.hmftools.bamtools.compare.MismatchType.NEW_ONLY;
 import static com.hartwig.hmftools.bamtools.compare.MismatchType.REF_ONLY;
 import static com.hartwig.hmftools.bamtools.compare.MismatchType.VALUE;
 import static com.hartwig.hmftools.common.genome.refgenome.RefGenomeVersion.V37;
 import static com.hartwig.hmftools.common.samtools.SamRecordUtils.CONSENSUS_READ_ATTRIBUTE;
+import static com.hartwig.hmftools.common.samtools.SamRecordUtils.MATE_CIGAR_ATTRIBUTE;
 import static com.hartwig.hmftools.common.samtools.SamRecordUtils.NO_CHROMOSOME_NAME;
 import static com.hartwig.hmftools.common.samtools.SamRecordUtils.NO_CIGAR;
 import static com.hartwig.hmftools.common.samtools.SamRecordUtils.NO_POSITION;
@@ -17,6 +20,7 @@ import static com.hartwig.hmftools.common.test.GeneTestUtils.CHR_3;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -125,7 +129,7 @@ public class PartitionReaderTest
         MockSAMRecordProvider refRecordProver = new MockSAMRecordProvider(refRecords);
         MockSAMRecordProvider newRecordProvider = new MockSAMRecordProvider(Lists.newArrayList());
 
-        CompareConfig config = new CompareConfig(0,false);
+        CompareConfig config = new CompareConfig(0,false, false);
         MockDiffConsumer diffs = new MockDiffConsumer();
         PartitionReader reader = new PartitionReader(REGION, config, refRecordProver, newRecordProvider, diffs);
         reader.run();
@@ -153,7 +157,7 @@ public class PartitionReaderTest
         MockSAMRecordProvider refRecordProver = new MockSAMRecordProvider(Lists.newArrayList());
         MockSAMRecordProvider newRecordProvider = new MockSAMRecordProvider(newRecords);
 
-        CompareConfig config = new CompareConfig(0,false);
+        CompareConfig config = new CompareConfig(0, false, false);
         MockDiffConsumer diffs = new MockDiffConsumer();
         PartitionReader reader = new PartitionReader(REGION, config, refRecordProver, newRecordProvider, diffs);
         reader.run();
@@ -182,7 +186,7 @@ public class PartitionReaderTest
         MockSAMRecordProvider refRecordProver = new MockSAMRecordProvider(refRecords);
         MockSAMRecordProvider newRecordProvider = new MockSAMRecordProvider(Lists.newArrayList());
 
-        CompareConfig config = new CompareConfig(0,true);
+        CompareConfig config = new CompareConfig(0, false, true);
         MockDiffConsumer diffs = new MockDiffConsumer();
         PartitionReader reader = new PartitionReader(REGION, config, refRecordProver, newRecordProvider, diffs);
         reader.run();
@@ -205,7 +209,7 @@ public class PartitionReaderTest
         MockSAMRecordProvider refRecordProver = new MockSAMRecordProvider(Lists.newArrayList());
         MockSAMRecordProvider newRecordProvider = new MockSAMRecordProvider(newRecords);
 
-        CompareConfig config = new CompareConfig(0,true);
+        CompareConfig config = new CompareConfig(0, false, true);
         MockDiffConsumer diffs = new MockDiffConsumer();
         PartitionReader reader = new PartitionReader(REGION, config, refRecordProver, newRecordProvider, diffs);
         reader.run();
@@ -227,7 +231,7 @@ public class PartitionReaderTest
         MockSAMRecordProvider refRecordProver = new MockSAMRecordProvider(Lists.newArrayList(refRead1));
         MockSAMRecordProvider newRecordProvider = new MockSAMRecordProvider(Lists.newArrayList(newRead1));
 
-        CompareConfig config = new CompareConfig(0,false);
+        CompareConfig config = new CompareConfig(0, false, false);
         MockDiffConsumer diffs = new MockDiffConsumer();
         PartitionReader reader = new PartitionReader(REGION, config, refRecordProver, newRecordProvider, diffs);
         reader.run();
@@ -249,7 +253,7 @@ public class PartitionReaderTest
         MockSAMRecordProvider refRecordProver = new MockSAMRecordProvider(Lists.newArrayList(refRead1));
         MockSAMRecordProvider newRecordProvider = new MockSAMRecordProvider(Lists.newArrayList(newRead1));
 
-        CompareConfig config = new CompareConfig(0,false);
+        CompareConfig config = new CompareConfig(0, false, false);
         MockDiffConsumer diffs = new MockDiffConsumer();
         PartitionReader reader = new PartitionReader(REGION, config, refRecordProver, newRecordProvider, diffs);
         reader.run();
@@ -282,7 +286,7 @@ public class PartitionReaderTest
         MockSAMRecordProvider refRecordProver = new MockSAMRecordProvider(Lists.newArrayList(refRead1));
         MockSAMRecordProvider newRecordProvider = new MockSAMRecordProvider(Lists.newArrayList(newRead1));
 
-        CompareConfig config = new CompareConfig(0,false);
+        CompareConfig config = new CompareConfig(0, false, false);
         MockDiffConsumer diffs = new MockDiffConsumer();
         PartitionReader reader = new PartitionReader(REGION, config, refRecordProver, newRecordProvider, diffs);
         reader.run();
@@ -315,7 +319,7 @@ public class PartitionReaderTest
         MockSAMRecordProvider refRecordProver = new MockSAMRecordProvider(Lists.newArrayList(refRead1));
         MockSAMRecordProvider newRecordProvider = new MockSAMRecordProvider(Lists.newArrayList(newRead1));
 
-        CompareConfig config = new CompareConfig(0,false);
+        CompareConfig config = new CompareConfig(0, false, false);
         MockDiffConsumer diffs = new MockDiffConsumer();
         PartitionReader reader = new PartitionReader(REGION, config, refRecordProver, newRecordProvider, diffs);
         reader.run();
@@ -349,22 +353,46 @@ public class PartitionReaderTest
         MockSAMRecordProvider refRecordProver = new MockSAMRecordProvider(Lists.newArrayList(refRead1));
         MockSAMRecordProvider newRecordProvider = new MockSAMRecordProvider(Lists.newArrayList(newRead1));
 
-        CompareConfig config = new CompareConfig(0,false);
+        CompareConfig config = new CompareConfig(0, false, false);
         MockDiffConsumer diffs = new MockDiffConsumer();
         PartitionReader reader = new PartitionReader(REGION, config, refRecordProver, newRecordProvider, diffs);
         reader.run();
         Statistics stats = reader.stats();
 
         assertEquals(1, diffs.Diffs.size());
-        DiffRecord newDiff = diffs.Diffs.get(0);
-        assertEquals(refRead1, newDiff.Read);
-        assertEquals(VALUE, newDiff.Type);
-        assertEquals(1, newDiff.DiffList.size());
-        assertEquals("duplicate(false/true)", newDiff.DiffList.get(0));
+        DiffRecord diff = diffs.Diffs.get(0);
+        assertEquals(refRead1, diff.Read);
+        assertEquals(VALUE, diff.Type);
+        assertEquals(1, diff.DiffList.size());
+        assertEquals("duplicate(false/true)", diff.DiffList.get(0));
 
         assertEquals(1, stats.RefReadCount);
         assertEquals(1, stats.NewReadCount);
         assertEquals(1, stats.DiffCount);
+    }
+
+    @Test
+    public void testIgnoreDuplicateFlagMismatch()
+    {
+        // TODO: extract common
+        SAMRecord refRead1 = SamRecordTestUtils.createSamRecord("READ_001", CHR_1, 100, "", "151M", CHR_2, 100, false, false, null, true, "151M");
+        SAMRecord newRead1 = SamRecordTestUtils.createSamRecord("READ_001", CHR_1, 100, "", "151M", CHR_2, 100, false, false, null, true, "151M");
+        newRead1.setDuplicateReadFlag(true);
+
+        MockSAMRecordProvider refRecordProver = new MockSAMRecordProvider(Lists.newArrayList(refRead1));
+        MockSAMRecordProvider newRecordProvider = new MockSAMRecordProvider(Lists.newArrayList(newRead1));
+
+        CompareConfig config = new CompareConfig(0, true, false);
+        MockDiffConsumer diffs = new MockDiffConsumer();
+        PartitionReader reader = new PartitionReader(REGION, config, refRecordProver, newRecordProvider, diffs);
+        reader.run();
+        Statistics stats = reader.stats();
+
+        assertTrue(diffs.Diffs.isEmpty());
+
+        assertEquals(1, stats.RefReadCount);
+        assertEquals(1, stats.NewReadCount);
+        assertEquals(0, stats.DiffCount);
     }
 
     @Test
@@ -379,7 +407,7 @@ public class PartitionReaderTest
         MockSAMRecordProvider refRecordProver = new MockSAMRecordProvider(Lists.newArrayList(refRead1));
         MockSAMRecordProvider newRecordProvider = new MockSAMRecordProvider(Lists.newArrayList(newRead1));
 
-        CompareConfig config = new CompareConfig(0,false);
+        CompareConfig config = new CompareConfig(0, false, false);
         MockDiffConsumer diffs = new MockDiffConsumer();
         PartitionReader reader = new PartitionReader(excludeRegion, config, refRecordProver, newRecordProvider, diffs);
         reader.run();
@@ -403,17 +431,17 @@ public class PartitionReaderTest
         MockSAMRecordProvider refRecordProver = new MockSAMRecordProvider(Lists.newArrayList(refRead1, refRead2));
         MockSAMRecordProvider newRecordProvider = new MockSAMRecordProvider(Lists.newArrayList(newRead1));
 
-        CompareConfig config = new CompareConfig(1,false);
+        CompareConfig config = new CompareConfig(1, false, false);
         MockDiffConsumer diffs = new MockDiffConsumer();
         PartitionReader reader = new PartitionReader(REGION, config, refRecordProver, newRecordProvider, diffs);
         reader.run();
         Statistics stats = reader.stats();
 
         assertEquals(1, diffs.Diffs.size());
-        DiffRecord refDiff = diffs.Diffs.get(0);
-        assertEquals(refRead1, refDiff.Read);
-        assertEquals(REF_ONLY, refDiff.Type);
-        assertNull(refDiff.DiffList);
+        DiffRecord diff = diffs.Diffs.get(0);
+        assertEquals(refRead1, diff.Read);
+        assertEquals(REF_ONLY, diff.Type);
+        assertNull(diff.DiffList);
 
         assertEquals(1, stats.RefReadCount);
         assertEquals(0, stats.NewReadCount);
@@ -430,19 +458,173 @@ public class PartitionReaderTest
         MockSAMRecordProvider refRecordProver = new MockSAMRecordProvider(Lists.newArrayList());
         MockSAMRecordProvider newRecordProvider = new MockSAMRecordProvider(Lists.newArrayList(newRead1, newRead2));
 
-        CompareConfig config = new CompareConfig(1,false);
+        CompareConfig config = new CompareConfig(1, false, false);
         MockDiffConsumer diffs = new MockDiffConsumer();
         PartitionReader reader = new PartitionReader(REGION, config, refRecordProver, newRecordProvider, diffs);
         reader.run();
         Statistics stats = reader.stats();
 
         assertEquals(1, diffs.Diffs.size());
-        DiffRecord newDiff = diffs.Diffs.get(0);
-        assertEquals(newRead1, newDiff.Read);
-        assertEquals(NEW_ONLY, newDiff.Type);
-        assertNull(newDiff.DiffList);
+        DiffRecord diff = diffs.Diffs.get(0);
+        assertEquals(newRead1, diff.Read);
+        assertEquals(NEW_ONLY, diff.Type);
+        assertNull(diff.DiffList);
 
         assertEquals(0, stats.RefReadCount);
+        assertEquals(1, stats.NewReadCount);
+        assertEquals(1, stats.DiffCount);
+    }
+
+    @Test
+    public void testCigarMismatch()
+    {
+        // TODO: extract common
+        SAMRecord refRead1 = SamRecordTestUtils.createSamRecord("READ_001", CHR_1, 100, "", "151M", CHR_2, 100, false, false, null, true, "151M");
+        SAMRecord newRead1 = SamRecordTestUtils.createSamRecord("READ_001", CHR_1, 100, "", "1S150M", CHR_2, 100, false, false, null, true, "151M");
+
+        MockSAMRecordProvider refRecordProver = new MockSAMRecordProvider(Lists.newArrayList(refRead1));
+        MockSAMRecordProvider newRecordProvider = new MockSAMRecordProvider(Lists.newArrayList(newRead1));
+
+        CompareConfig config = new CompareConfig(0, false, false);
+        MockDiffConsumer diffs = new MockDiffConsumer();
+        PartitionReader reader = new PartitionReader(REGION, config, refRecordProver, newRecordProvider, diffs);
+        reader.run();
+        Statistics stats = reader.stats();
+
+        assertEquals(1, diffs.Diffs.size());
+        DiffRecord diff = diffs.Diffs.get(0);
+        assertEquals(refRead1, diff.Read);
+        assertEquals(VALUE, diff.Type);
+        assertEquals(1, diff.DiffList.size());
+        assertEquals("cigar(151M/1S150M)", diff.DiffList.get(0));
+
+        assertEquals(1, stats.RefReadCount);
+        assertEquals(1, stats.NewReadCount);
+        assertEquals(1, stats.DiffCount);
+    }
+
+    @Test
+    public void testMateCigarAttributeMismatch()
+    {
+        // TODO: extract common
+        SAMRecord refRead1 = SamRecordTestUtils.createSamRecord("READ_001", CHR_1, 100, "", "151M", CHR_2, 100, false, false, null, true, "1S150M");
+        SAMRecord newRead1 = SamRecordTestUtils.createSamRecord("READ_001", CHR_1, 100, "", "151M", CHR_2, 100, false, false, null, true, "151M");
+
+        assertNotNull(refRead1.getStringAttribute(MATE_CIGAR_ATTRIBUTE));
+        assertEquals(refRead1.getStringAttribute(MATE_CIGAR_ATTRIBUTE), "1S150M");
+
+        assertNotNull(newRead1.getStringAttribute(MATE_CIGAR_ATTRIBUTE));
+        assertEquals(newRead1.getStringAttribute(MATE_CIGAR_ATTRIBUTE), "151M");
+
+        MockSAMRecordProvider refRecordProver = new MockSAMRecordProvider(Lists.newArrayList(refRead1));
+        MockSAMRecordProvider newRecordProvider = new MockSAMRecordProvider(Lists.newArrayList(newRead1));
+
+        CompareConfig config = new CompareConfig(0, false, false);
+        MockDiffConsumer diffs = new MockDiffConsumer();
+        PartitionReader reader = new PartitionReader(REGION, config, refRecordProver, newRecordProvider, diffs);
+        reader.run();
+        Statistics stats = reader.stats();
+
+        assertEquals(1, diffs.Diffs.size());
+        DiffRecord diff = diffs.Diffs.get(0);
+        assertEquals(refRead1, diff.Read);
+        assertEquals(VALUE, diff.Type);
+        assertEquals(1, diff.DiffList.size());
+        assertEquals(format("attrib_%s(1S150M/151M)", MATE_CIGAR_ATTRIBUTE), diff.DiffList.get(0));
+
+        assertEquals(1, stats.RefReadCount);
+        assertEquals(1, stats.NewReadCount);
+        assertEquals(1, stats.DiffCount);
+    }
+
+    @Test
+    public void testMateCigarAttributeBothNull()
+    {
+        // TODO: extract common
+        SAMRecord refRead1 = SamRecordTestUtils.createSamRecord("READ_001", CHR_1, 100, "", "151M", CHR_2, 100, false, false, null, true, null);
+        SAMRecord newRead1 = SamRecordTestUtils.createSamRecord("READ_001", CHR_1, 100, "", "151M", CHR_2, 100, false, false, null, true, null);
+
+        assertNull(refRead1.getStringAttribute(MATE_CIGAR_ATTRIBUTE));
+        assertNull(newRead1.getStringAttribute(MATE_CIGAR_ATTRIBUTE));
+
+        MockSAMRecordProvider refRecordProver = new MockSAMRecordProvider(Lists.newArrayList(refRead1));
+        MockSAMRecordProvider newRecordProvider = new MockSAMRecordProvider(Lists.newArrayList(newRead1));
+
+        CompareConfig config = new CompareConfig(0, false, false);
+        MockDiffConsumer diffs = new MockDiffConsumer();
+        PartitionReader reader = new PartitionReader(REGION, config, refRecordProver, newRecordProvider, diffs);
+        reader.run();
+        Statistics stats = reader.stats();
+
+        assertTrue(diffs.Diffs.isEmpty());
+
+        assertEquals(1, stats.RefReadCount);
+        assertEquals(1, stats.NewReadCount);
+        assertEquals(0, stats.DiffCount);
+    }
+
+    @Test
+    public void testMateCigarAttributeRefIsNull()
+    {
+        // TODO: extract common
+        SAMRecord refRead1 = SamRecordTestUtils.createSamRecord("READ_001", CHR_1, 100, "", "151M", CHR_2, 100, false, false, null, true, null);
+        SAMRecord newRead1 = SamRecordTestUtils.createSamRecord("READ_001", CHR_1, 100, "", "151M", CHR_2, 100, false, false, null, true, "151M");
+
+        assertNull(refRead1.getStringAttribute(MATE_CIGAR_ATTRIBUTE));
+
+        assertNotNull(newRead1.getStringAttribute(MATE_CIGAR_ATTRIBUTE));
+        assertEquals(newRead1.getStringAttribute(MATE_CIGAR_ATTRIBUTE), "151M");
+
+        MockSAMRecordProvider refRecordProver = new MockSAMRecordProvider(Lists.newArrayList(refRead1));
+        MockSAMRecordProvider newRecordProvider = new MockSAMRecordProvider(Lists.newArrayList(newRead1));
+
+        CompareConfig config = new CompareConfig(0, false, false);
+        MockDiffConsumer diffs = new MockDiffConsumer();
+        PartitionReader reader = new PartitionReader(REGION, config, refRecordProver, newRecordProvider, diffs);
+        reader.run();
+        Statistics stats = reader.stats();
+
+        assertEquals(1, diffs.Diffs.size());
+        DiffRecord diff = diffs.Diffs.get(0);
+        assertEquals(refRead1, diff.Read);
+        assertEquals(VALUE, diff.Type);
+        assertEquals(1, diff.DiffList.size());
+        assertEquals(format("attrib_%s(missing/151M)", MATE_CIGAR_ATTRIBUTE), diff.DiffList.get(0));
+
+        assertEquals(1, stats.RefReadCount);
+        assertEquals(1, stats.NewReadCount);
+        assertEquals(1, stats.DiffCount);
+    }
+
+    @Test
+    public void testMateCigarAttributeNewIsNull()
+    {
+        // TODO: extract common
+        SAMRecord refRead1 = SamRecordTestUtils.createSamRecord("READ_001", CHR_1, 100, "", "151M", CHR_2, 100, false, false, null, true, "151M");
+        SAMRecord newRead1 = SamRecordTestUtils.createSamRecord("READ_001", CHR_1, 100, "", "151M", CHR_2, 100, false, false, null, true, null);
+
+        assertNotNull(refRead1.getStringAttribute(MATE_CIGAR_ATTRIBUTE));
+        assertEquals(refRead1.getStringAttribute(MATE_CIGAR_ATTRIBUTE), "151M");
+
+        assertNull(newRead1.getStringAttribute(MATE_CIGAR_ATTRIBUTE));
+
+        MockSAMRecordProvider refRecordProver = new MockSAMRecordProvider(Lists.newArrayList(refRead1));
+        MockSAMRecordProvider newRecordProvider = new MockSAMRecordProvider(Lists.newArrayList(newRead1));
+
+        CompareConfig config = new CompareConfig(0, false, false);
+        MockDiffConsumer diffs = new MockDiffConsumer();
+        PartitionReader reader = new PartitionReader(REGION, config, refRecordProver, newRecordProvider, diffs);
+        reader.run();
+        Statistics stats = reader.stats();
+
+        assertEquals(1, diffs.Diffs.size());
+        DiffRecord diff = diffs.Diffs.get(0);
+        assertEquals(refRead1, diff.Read);
+        assertEquals(VALUE, diff.Type);
+        assertEquals(1, diff.DiffList.size());
+        assertEquals(format("attrib_%s(151M/missing)", MATE_CIGAR_ATTRIBUTE), diff.DiffList.get(0));
+
+        assertEquals(1, stats.RefReadCount);
         assertEquals(1, stats.NewReadCount);
         assertEquals(1, stats.DiffCount);
     }

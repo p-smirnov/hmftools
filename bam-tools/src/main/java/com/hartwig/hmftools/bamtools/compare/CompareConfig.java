@@ -87,7 +87,7 @@ public class CompareConfig
     }
 
     @VisibleForTesting
-    public CompareConfig(int maxPartitionReads, boolean ignoreAlterations)
+    public CompareConfig(int maxPartitionReads, boolean ignoreDupDiffs, boolean ignoreAlterations)
     {
         OutputFile = null;
         RefBamFile = null;
@@ -97,7 +97,7 @@ public class CompareConfig
         PartitionSize = DEFAULT_CHR_PARTITION_SIZE;
         MaxPartitionReads = maxPartitionReads;
         ExcludeRegions = false;
-        IgnoreDupDiffs = false;
+        IgnoreDupDiffs = ignoreDupDiffs;
         IgnoreAlterations = ignoreAlterations;
         Threads = 0;
         LogReadIds = Lists.newArrayList();

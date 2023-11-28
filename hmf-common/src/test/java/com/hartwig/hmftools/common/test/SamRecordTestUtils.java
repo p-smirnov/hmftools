@@ -12,6 +12,8 @@ import com.hartwig.hmftools.common.genome.chromosome.HumanChromosome;
 import com.hartwig.hmftools.common.genome.refgenome.RefGenomeCoordinates;
 import com.hartwig.hmftools.common.samtools.SupplementaryReadData;
 
+import org.jetbrains.annotations.Nullable;
+
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordSetBuilder;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -38,7 +40,7 @@ public final class SamRecordTestUtils
     public static SAMRecord createSamRecord(
             final String readId, final String chrStr, int readStart, final String readBases, final String cigar, final String mateChr,
             int mateStart, boolean isReversed, boolean isSupplementary, final SupplementaryReadData suppAlignment,
-            boolean mateReversed, final String mateCigar)
+            boolean mateReversed, @Nullable final String mateCigar)
     {
         SAMRecord record = createSamRecord(readId, chrStr, readStart, readBases, cigar, mateChr, mateStart, isReversed, isSupplementary, suppAlignment);
 
