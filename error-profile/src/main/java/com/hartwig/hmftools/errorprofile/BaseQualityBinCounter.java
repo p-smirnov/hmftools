@@ -98,12 +98,14 @@ public class BaseQualityBinCounter
     }
 
     Map<BaseQualityBin, Count> mBaseQualityCountMap = new ConcurrentHashMap<>(100_000, 0.5f);
-    Map<TileBaseQualityBin, Count> mTileBaseQualityCountMap = new ConcurrentHashMap<>(200_000, 0.5f);
+    //Map<TileBaseQualityBin, Count> mTileBaseQualityCountMap = new ConcurrentHashMap<>(200_000, 0.5f);
+    TileBaseQualityBinMap mFastTileBaseQualityCountMap = new TileBaseQualityBinMap();
 
     Interner<String> mStringInterner = Interners.newStrongInterner();
 
     public Map<BaseQualityBin, Count> getBaseQualityCountMap() { return mBaseQualityCountMap; }
-    public Map<TileBaseQualityBin, Count> getTileBaseQualityCountMap() { return mTileBaseQualityCountMap; }
+    public Map<TileBaseQualityBin, Count> getTileBaseQualityCountMap() { return mFastTileBaseQualityCountMap.toTileBaseQualityMap(); }
+    //public Map<TileBaseQualityBin, Count> getTileBaseQualityCountMap() { return mTileBaseQualityCountMap; }
 
     void onReadProfile(ReadProfile readProfile)
     {
@@ -169,17 +171,22 @@ public class BaseQualityBinCounter
                     //posSupport.alt,
                     posSupport.baseQuality);
 
-            Count c = mBaseQualityCountMap.computeIfAbsent(bqBin, (k) -> new Count());
-            Count tileCount = mTileBaseQualityCountMap.computeIfAbsent(tileBaseQualityBin, (k) -> new Count());
+            // TODO: remove this
+            //if (posSupport.readPosition5To3 != 0 || posSupport.baseQuality != 37)
+            //    continue;
 
-            //Count tileCount = mFastTileBaseQualityCountMap.getOrCreate(tileBaseQualityBin);
+            Count c = mBaseQualityCountMap.computeIfAbsent(bqBin, (k) -> new Count());
+            //Count tileCount = mTileBaseQualityCountMap.computeIfAbsent(tileBaseQualityBin, (k) -> new Count());
+
+            mFastTileBaseQualityCountMap.incrementCount(tileBaseQualityBin, false);
             c.incrementTotalCount();
-            tileCount.incrementTotalCount();
+            //tileCount.incrementTotalCount();
 
             if(ref != posSupport.alt && !BaseQualCalcs.likelyRealVariant(posSupport))
             {
                 c.incrementErrorCount();
-                tileCount.incrementErrorCount();
+                //tileCount.incrementErrorCount();
+                mFastTileBaseQualityCountMap.incrementCount(tileBaseQualityBin, true);
             }
         }
     }

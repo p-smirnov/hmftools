@@ -2,12 +2,18 @@ package com.hartwig.hmftools.errorprofile;
 
 import static java.time.format.DateTimeFormatter.ISO_ZONED_DATE_TIME;
 
+import static com.hartwig.hmftools.common.utils.config.ConfigUtils.setLogLevel;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.hartwig.hmftools.common.utils.config.ConfigBuilder;
 import com.hartwig.hmftools.common.utils.version.VersionInfo;
 
@@ -60,9 +66,12 @@ public class ErrorProfileApplication
             return 1;
         }
 
+        final ThreadFactory namedThreadFactory = new ThreadFactoryBuilder().setNameFormat("worker-%d").build();
+        ExecutorService executorService = Executors.newFixedThreadPool(mConfig.Threads, namedThreadFactory);
+
         mReadQualAnalyser = new ReadQualAnalyser();
 
-        processBam();
+        processBam(executorService);
 
         writeBaseQualityBinFile(mReadQualAnalyser.getBaseQualityBinCounter());
 
@@ -98,9 +107,9 @@ public class ErrorProfileApplication
         return readerFactory;
     }
 
-    private void processBam() throws InterruptedException
+    private void processBam(ExecutorService executorService) throws InterruptedException
     {
-        mReadQualAnalyser.processBam(mConfig);
+        mReadQualAnalyser.processBam(mConfig, executorService);
     }
 
     private void writeBaseQualityBinFile(BaseQualityBinCounter baseQualityBinCounter)
@@ -121,6 +130,8 @@ public class ErrorProfileApplication
         ErrorProfileConfig.registerConfig(configBuilder);
 
         configBuilder.checkAndParseCommandLine(args);
+
+        setLogLevel(configBuilder);
 
         // set all thread exception handler
         // if we do not do this, exception thrown in other threads will not be handled and results

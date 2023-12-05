@@ -94,29 +94,6 @@ public class ErrorProfileUtils
         return factory.open(new File(bamFile));
     }
 
-    public static void processBamAsync(ErrorProfileConfig config, Supplier<AsyncBamReader.IReadHandler> readHandlerSupplier)
-            throws InterruptedException
-    {
-        int numBamReaders = Math.max(config.Threads - 1, 1);
-        List<ChrBaseRegion> partitions = createPartitions(config);
-
-        Random rand = new Random(0);
-
-        // use sampling frac to filter
-        partitions = partitions.stream()
-                .filter(o -> rand.nextDouble() <= config.SamplingFraction)
-                .collect(Collectors.toList());
-
-        SamReaderFactory readerFactory = SamReaderFactory.make().validationStringency(config.BamStringency);
-        if(config.RefGenomeFile != null)
-        {
-            readerFactory = readerFactory.referenceSource(new ReferenceSource(new File(config.RefGenomeFile)));
-        }
-
-        AsyncBamReader.processBam(config.BamPath, readerFactory, partitions, readHandlerSupplier,
-                numBamReaders, config.MinMappingQuality);
-    }
-
     public static @Nullable ImmutableTriple<Character, Integer, Integer> findHomopolymerLength(String seq)
     {
         char currentBase = '.';

@@ -15,13 +15,13 @@ public class RefGenomeCache implements IRefGenomeCache
     private static final int DEFAULT_CHUNK_SIZE = 100_000;
     private static final int LEFT_FLANK_BASES = 2_000;
 
-    private IndexedFastaSequenceFile mRefGenome;
+    private final IndexedFastaSequenceFile mRefGenome;
 
-    private String mContig;
-    private int mChunkSize;
+    private final String mContig;
+    private final int mChunkSize;
 
     private long mChunkStartPosition = 0;
-    private long mContigLength;
+    private final long mContigLength;
     private byte[] mRefChunk = null;
 
     public RefGenomeCache(IndexedFastaSequenceFile refGenome, String contig, int chunkSize)

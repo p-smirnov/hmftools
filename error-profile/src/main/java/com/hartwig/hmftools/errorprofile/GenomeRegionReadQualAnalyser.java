@@ -11,8 +11,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import com.hartwig.hmftools.common.region.ChrBaseRegion;
-import com.hartwig.hmftools.common.samtools.CigarHandler;
-import com.hartwig.hmftools.common.samtools.CigarTraversal;
+import com.hartwig.hmftools.errorprofile.utils.CigarHandler;
 import com.hartwig.hmftools.errorprofile.utils.IRefGenomeCache;
 
 import org.apache.commons.lang3.Validate;
@@ -68,7 +67,7 @@ public class GenomeRegionReadQualAnalyser
             return;
 
         mReads.add(read);
-        CigarTraversal.traverseCigar(read, mGenomePositionStatsAdder);
+        mGenomePositionStatsAdder.traverseCigar(read);
 
         // if(mReadCounter > 0 && (mReadCounter % 1000) == 0)
            // purgeBaseDataList(record.getAlignmentStart());
@@ -148,7 +147,7 @@ public class GenomeRegionReadQualAnalyser
     {
         ReadBaseSupportBuilder readBaseSupportBuilder = new ReadBaseSupportBuilder(read, readTag);
         // which base look correct?
-        CigarTraversal.traverseCigar(read, readBaseSupportBuilder);
+        readBaseSupportBuilder.traverseCigar(read);
         readBaseSupportBuilder.convertToReadStrand();
 
         return readBaseSupportBuilder.mBaseSupports;
@@ -188,7 +187,7 @@ public class GenomeRegionReadQualAnalyser
     class GenomePositionStatsAdder implements CigarHandler
     {
         @Override
-        public void handleAlignment(final SAMRecord record, final CigarElement cigarElement, boolean beforeIndel, final int startReadIndex, final int startRefPos)
+        public void handleAlignment(final SAMRecord record, final CigarElement cigarElement, final int startReadIndex, final int startRefPos)
         {
             for(int i = 0; i < cigarElement.getLength(); i++)
             {
@@ -217,6 +216,7 @@ public class GenomeRegionReadQualAnalyser
             if(refPos < mGenomeRegion.start() || refPos > mGenomeRegion.end())
                 return;
 
+            // TODO: check if this is correct
             // find the inserted sequence
             // readIndex is 0 based
             String insertedSeq = record.getReadString().substring(readIndex, readIndex + e.getLength());
@@ -237,6 +237,7 @@ public class GenomeRegionReadQualAnalyser
                 if(refPos < mGenomeRegion.start())
                     continue;
 
+                // TODO: check if this is correct
                 getOrCreatePositionStats(refPos).addDelete(getReadStrand(record));
             }
         }
@@ -326,7 +327,7 @@ public class GenomeRegionReadQualAnalyser
 
 
         @Override
-        public void handleAlignment(final SAMRecord record, final CigarElement e, boolean beforeIndel, final int startReadIndex, final int startRefPos)
+        public void handleAlignment(final SAMRecord record, final CigarElement e, final int startReadIndex, final int startRefPos)
         {
             for(int i = 0; i < e.getLength(); i++)
             {

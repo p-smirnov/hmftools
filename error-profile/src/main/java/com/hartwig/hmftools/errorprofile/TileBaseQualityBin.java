@@ -96,7 +96,7 @@ public class TileBaseQualityBin
 
     private int calcHashCode()
     {
-        final int PRIME = 109;
+        final int PRIME = 127;
         int result = flowcell.hashCode();
         result = PRIME * result + (int) lane;
         result = PRIME * result + (int) tile;

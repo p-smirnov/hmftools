@@ -91,7 +91,7 @@ public class BaseQualityBin
     @Override
     public int hashCode()
     {
-        final int PRIME = 109;
+        final int PRIME = 127;
         int result = (firstOfPair ? 1 : 0);
         result = PRIME * result + readPosition;
         result = PRIME * result + (int) ref;
