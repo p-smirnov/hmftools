@@ -14,11 +14,13 @@ import com.google.common.collect.Lists;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.Nullable;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.TextCigarCodec;
 
 public final class SamRecordUtils
 {
@@ -165,5 +167,191 @@ public final class SamRecordUtils
         }
 
         return mappedCoords;
+    }
+
+    // TODO: Not in final
+    public static String getCigarPrefix(final SAMRecord read, int posEnd)
+    {
+        int unclippedStart = read.getUnclippedStart();
+        if (unclippedStart > posEnd)
+            return "";
+
+        List<CigarOperator> cigarOps = Lists.newArrayList();
+        int pos = unclippedStart;
+        for (CigarElement cigarElem : read.getCigar().getCigarElements())
+        {
+            CigarOperator cigarOp = cigarElem.getOperator();
+            int elemLen = cigarElem.getLength();
+            for (int i = 0; i < elemLen; i++)
+            {
+                cigarOps.add(cigarOp);
+
+                switch (cigarOp)
+                {
+                    case M:
+                    case EQ:
+                    case X:
+                    case S:
+                    case D:
+                    case H:
+                    case N:
+                        pos++;
+                }
+
+                if (pos > posEnd)
+                    return runLengthEncodeCigarOps(cigarOps).toString();
+            }
+        }
+
+        return runLengthEncodeCigarOps(cigarOps).toString();
+    }
+
+    // TODO: Not in final
+    public static String getCigarSuffix(final SAMRecord read, int posStart)
+    {
+        int unclippedStart = read.getUnclippedStart();
+
+        List<CigarOperator> cigarOps = Lists.newArrayList();
+        int pos = unclippedStart;
+        for (CigarElement cigarElem : read.getCigar().getCigarElements())
+        {
+            CigarOperator cigarOp = cigarElem.getOperator();
+            int elemLen = cigarElem.getLength();
+            for (int i = 0; i < elemLen; i++)
+            {
+                if (pos >= posStart)
+                    cigarOps.add(cigarOp);
+
+                switch (cigarOp)
+                {
+                    case M:
+                    case EQ:
+                    case X:
+                    case S:
+                    case D:
+                    case H:
+                    case N:
+                        pos++;
+                }
+            }
+        }
+
+        if (cigarOps.isEmpty())
+            return "";
+
+        return runLengthEncodeCigarOps(cigarOps).toString();
+    }
+
+    // TODO: Not in final
+    public static String getCigarFragment(final SAMRecord read, int posStart, int posEnd)
+    {
+        if (posEnd < posStart)
+            return "";
+
+        int unclippedStart = read.getUnclippedStart();
+        if (unclippedStart > posEnd)
+            return "";
+
+        List<CigarOperator> cigarOps = Lists.newArrayList();
+        int pos = unclippedStart;
+        for (CigarElement cigarElem : read.getCigar().getCigarElements())
+        {
+            CigarOperator cigarOp = cigarElem.getOperator();
+            int elemLen = cigarElem.getLength();
+            for (int i = 0; i < elemLen; i++)
+            {
+                if (pos >= posStart)
+                    cigarOps.add(cigarOp);
+
+                switch (cigarOp)
+                {
+                    case M:
+                    case EQ:
+                    case X:
+                    case S:
+                    case D:
+                    case H:
+                    case N:
+                        pos++;
+                }
+
+                if (pos > posEnd)
+                    break;
+            }
+
+            if (pos > posEnd)
+                break;
+        }
+
+        if (cigarOps.isEmpty())
+            return "";
+
+        return runLengthEncodeCigarOps(cigarOps).toString();
+    }
+
+    // TODO: Not in final
+    private static Cigar runLengthEncodeCigarOps(final List<CigarOperator> cigarOps)
+    {
+        List<CigarElement> elems = Lists.newArrayList();
+        CigarOperator currentOp = null;
+        int currentLen = 0;
+        for (CigarOperator op : cigarOps)
+        {
+            if (currentOp == null)
+            {
+                currentOp = op;
+                currentLen = 1;
+                continue;
+            }
+
+            if (currentOp == op)
+            {
+                ++currentLen;
+                continue;
+            }
+
+            elems.add(new CigarElement(currentLen, currentOp));
+            currentOp = op;
+            currentLen = 1;
+        }
+
+        if (currentOp != null)
+            elems.add(new CigarElement(currentLen, currentOp));
+
+        return new Cigar(elems);
+    }
+
+    public static int getMateAlignmentEnd(final SAMRecord read)
+    {
+        String mateCigarStr = read.getStringAttribute(MATE_CIGAR_ATTRIBUTE);
+        if (mateCigarStr == null || mateCigarStr.equals(NO_CIGAR))
+            return NO_POSITION;
+
+        Cigar mateCigar = TextCigarCodec.decode(mateCigarStr);
+        return read.getMateAlignmentStart() + mateCigar.getReferenceLength() - 1;
+    }
+
+    public static String getOrientationString(final SAMRecord read)
+    {
+        if (!read.getReadPairedFlag())
+            return "";
+
+        if (read.getReadUnmappedFlag() || read.getMateUnmappedFlag())
+            return "";
+
+        String firstStr;
+        String secondStr;
+        if (read.getFirstOfPairFlag())
+        {
+            firstStr = read.getReadNegativeStrandFlag() ? "R" : "F";
+            secondStr = read.getMateNegativeStrandFlag() ? "R" : "F";
+        }
+        else
+        {
+            firstStr = read.getMateNegativeStrandFlag() ? "R" : "F";
+            secondStr = read.getReadNegativeStrandFlag() ? "R" : "F";
+        }
+
+        return format("%s1%s2", firstStr, secondStr);
     }
 }

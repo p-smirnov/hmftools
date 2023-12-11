@@ -11,8 +11,13 @@ import static com.hartwig.hmftools.sage.common.ReadContextMatch.FULL;
 import static com.hartwig.hmftools.sage.common.ReadContextMatch.NONE;
 import static com.hartwig.hmftools.sage.common.ReadContextMatch.PARTIAL;
 
+import java.util.List;
+import java.util.Map;
+import java.util.StringJoiner;
+
 import com.hartwig.hmftools.sage.evidence.ReadIndexBases;
 
+import org.apache.commons.compress.utils.Lists;
 import org.apache.logging.log4j.util.Strings;
 
 public class IndexedBases
@@ -314,6 +319,46 @@ public class IndexedBases
         }
 
         return totalLength;
+    }
+
+    // TODO: Not in final.
+    // TODO: as tsv
+    public static List<String> HEADERS = getHeaders();
+
+    private static List<String> getHeaders()
+    {
+        List<String> headers = Lists.newArrayList();
+        headers.add("position");
+        headers.add("index");
+        headers.add("leftCoreIndex");
+        headers.add("rightCoreIndex");
+        headers.add("flankSize");
+        headers.add("bases");
+        return headers;
+    }
+
+    public static IndexedBases fromMap(final Map<String, String> recordMap)
+    {
+        int position = Integer.parseInt(recordMap.get("position"));
+        int index = Integer.parseInt(recordMap.get("index"));
+        int leftCoreIndex = Integer.parseInt(recordMap.get("leftCoreIndex"));
+        int rightCoreIndex = Integer.parseInt(recordMap.get("rightCoreIndex"));
+        int flankSize = Integer.parseInt(recordMap.get("flankSize"));
+        final byte[] bases = recordMap.get("bases").getBytes();
+
+        return new IndexedBases(position, index, leftCoreIndex, rightCoreIndex, flankSize, bases);
+    }
+
+    public String asCsv()
+    {
+        StringJoiner fieldJoiner = new StringJoiner(",");
+        fieldJoiner.add(String.valueOf(Position));
+        fieldJoiner.add(String.valueOf(Index));
+        fieldJoiner.add(String.valueOf(LeftCoreIndex));
+        fieldJoiner.add(String.valueOf(RightCoreIndex));
+        fieldJoiner.add(String.valueOf(FlankSize));
+        fieldJoiner.add(new String(Bases));
+        return fieldJoiner.toString();
     }
 
     public String toString()
