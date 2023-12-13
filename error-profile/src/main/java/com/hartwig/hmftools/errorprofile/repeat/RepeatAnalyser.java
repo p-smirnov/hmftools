@@ -2,6 +2,7 @@ package com.hartwig.hmftools.errorprofile.repeat;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -14,17 +15,25 @@ public class RepeatAnalyser
 {
     public static final Logger sLogger = LogManager.getLogger(RepeatAnalyser.class);
 
-    final RefGenomeHomopolymer refGenomeHomopolymer;
+    final RefGenomeMicrosatellite refGenomeMicrosatellite;
 
     private final List<ReadRepeatMatch> mReadRepeatMatches = new ArrayList<>();
 
-    private int mNumReadRejected = 0;
-
     public List<ReadRepeatMatch> getReadRepeatMatches() { return mReadRepeatMatches; }
 
-    public RepeatAnalyser(final RefGenomeHomopolymer refGenomeHomopolymer)
+    public List<ReadRepeatMatch> getPassingReadRepeatMatches()
     {
-        this.refGenomeHomopolymer = refGenomeHomopolymer;
+        return mReadRepeatMatches.stream().filter(o -> !o.shouldDropRead).collect(Collectors.toList());
+    }
+
+    public int numReadRejected()
+    {
+        return (int)mReadRepeatMatches.stream().filter(o -> o.shouldDropRead).count();
+    }
+
+    public RepeatAnalyser(final RefGenomeMicrosatellite refGenomeMicrosatellite)
+    {
+        this.refGenomeMicrosatellite = refGenomeMicrosatellite;
     }
 
     public void addReadToStats(final SAMRecord read)
@@ -32,29 +41,7 @@ public class RepeatAnalyser
         if(read.getReadUnmappedFlag() || read.getDuplicateReadFlag())
             return;
 
-        mReadRepeatMatches.add(ReadRepeatMatch.from(refGenomeHomopolymer, read));
-
-        /*
-        if(readRepeatMatch.shouldDropRead)
-        {
-
-        }
-        else
-        {
-            // calculate the repeat length
-            int readRepeatLength = readRepeatMatch.numAligned + readRepeatMatch.numInserted;
-
-            // check that deleted makes sense
-            Validate.isTrue(readRepeatLength == refGenomeHomopolymer.numRepeat - readRepeatMatch.numDeleted + readRepeatMatch.numInserted);
-        }
-         */
-
-        //
-
-        //CigarTraversal.traverseCigar(read, mGenomePositionStatsAdder);
-
-        // if(mReadCounter > 0 && (mReadCounter % 1000) == 0)
-        // purgeBaseDataList(record.getAlignmentStart());
+        mReadRepeatMatches.add(ReadRepeatMatch.from(refGenomeMicrosatellite, read));
     }
 
     /*

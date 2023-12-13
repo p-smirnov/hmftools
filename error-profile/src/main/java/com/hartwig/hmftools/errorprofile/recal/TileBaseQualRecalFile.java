@@ -54,7 +54,7 @@ public class TileBaseQualRecalFile
 
         List<String> columns = Arrays.stream(Column.values()).map(Enum::name).collect(Collectors.toList());
 
-        new DelimFileWriter().write(filename, columns, baseQualBins, (key, row) ->
+        DelimFileWriter.write(filename, columns, baseQualBins, (key, row) ->
         {
             TileBaseQualAdjustment tileBaseQualAdjustment = tileBaseQualAdjustmentMap.get(key);
             row.set(Column.flowcell, key.flowcell);

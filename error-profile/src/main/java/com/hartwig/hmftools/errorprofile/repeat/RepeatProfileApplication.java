@@ -3,7 +3,6 @@ package com.hartwig.hmftools.errorprofile.repeat;
 import static java.time.format.DateTimeFormatter.ISO_ZONED_DATE_TIME;
 
 import static com.hartwig.hmftools.common.utils.config.ConfigUtils.setLogLevel;
-import static com.hartwig.hmftools.errorprofile.repeat.RepeatProfileConstant.MIN_REPEAT_LENGTH;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -25,7 +24,6 @@ import org.apache.logging.log4j.Logger;
 
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.cram.ref.ReferenceSource;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 
 public class RepeatProfileApplication
 {
@@ -55,13 +53,14 @@ public class RepeatProfileApplication
             return 1;
         }
 
-        // find all the polymers
-        IndexedFastaSequenceFile refGenome = new IndexedFastaSequenceFile(new File(mConfig.RefGenomeFile));
-        List<RefGenomeHomopolymer> refGenomeHomopolymers = RefGenomeHomopolymerFinder.findHomopolymer(refGenome, MIN_REPEAT_LENGTH);
+        List<RefGenomeMicrosatellite> refGenomeMicrosatellites = RefGenomeMicrosatelliteFile.read(mConfig.RefGenomeMicrosatelliteFile);
+        refGenomeMicrosatellites = RefGenomeMicrosatelliesFinder.filterMicrosatellites(refGenomeMicrosatellites, 50000);
 
-        filterSpecificRegions(refGenomeHomopolymers);
+        sLogger.info("loaded {} microsatellites regions", refGenomeMicrosatellites.size());
 
-        SampleRepeatAnalyser sampleRepeatAnalyser = new SampleRepeatAnalyser(refGenomeHomopolymers, mConfig.SamplingFraction);
+        filterSpecificRegions(refGenomeMicrosatellites);
+
+        SampleRepeatAnalyser sampleRepeatAnalyser = new SampleRepeatAnalyser(refGenomeMicrosatellites, mConfig.SamplingFraction);
 
         final ThreadFactory namedThreadFactory = new ThreadFactoryBuilder().setNameFormat("worker-%d").build();
         ExecutorService executorService = Executors.newFixedThreadPool(mConfig.Threads, namedThreadFactory);
@@ -79,15 +78,19 @@ public class RepeatProfileApplication
         return 0;
     }
 
-    private void filterSpecificRegions(List<RefGenomeHomopolymer> refGenomeHomopolymers)
+    private void filterSpecificRegions(List<RefGenomeMicrosatellite> refGenomeMicrosatellites)
     {
+        /*
         if(!mConfig.SpecificRegions.isEmpty())
         {
             sLogger.info(mConfig.SpecificRegions);
 
-            refGenomeHomopolymers.removeIf(refGenomeHomopolymer -> mConfig.SpecificRegions.stream()
+            refGenomeMicrosatellites.removeIf(refGenomeHomopolymer -> mConfig.SpecificRegions.stream()
                     .noneMatch(o -> o.overlaps(refGenomeHomopolymer.genomeRegion)));
         }
+         */
+
+        // we want to get around 1000 sites for each repeat context
     }
 
     private static SamReaderFactory readerFactory(final ErrorProfileConfig config)

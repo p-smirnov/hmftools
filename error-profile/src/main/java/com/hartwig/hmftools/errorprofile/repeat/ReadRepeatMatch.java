@@ -10,6 +10,7 @@ import org.apache.logging.log4j.Logger;
 
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.util.StringUtil;
 
 // we need to look through the cigar to decide whether this read has matches
 // we can either
@@ -20,19 +21,19 @@ class ReadRepeatMatch implements CigarHandler
 {
     public static final Logger sLogger = LogManager.getLogger(ReadRepeatMatch.class);
 
-    final RefGenomeHomopolymer refGenomeHomopolymer;
+    final RefGenomeMicrosatellite refGenomeMicrosatellite;
     boolean shouldDropRead = false;
     int numAligned = 0;
     int numInserted = 0;
     int numDeleted = 0;
 
-    private ReadRepeatMatch(final RefGenomeHomopolymer refGenomeHomopolymer, final SAMRecord record)
+    private ReadRepeatMatch(final RefGenomeMicrosatellite refGenomeMicrosatellite, final SAMRecord record)
     {
-        this.refGenomeHomopolymer = refGenomeHomopolymer;
+        this.refGenomeMicrosatellite = refGenomeMicrosatellite;
 
         // this read needs to wholly contain the homopolymer to be counted
-        if(record.getAlignmentStart() > refGenomeHomopolymer.referenceStart() ||
-        record.getAlignmentEnd() < refGenomeHomopolymer.referenceEnd())
+        if(record.getAlignmentStart() > refGenomeMicrosatellite.referenceStart() ||
+        record.getAlignmentEnd() < refGenomeMicrosatellite.referenceEnd())
         {
             shouldDropRead = true;
         }
@@ -45,11 +46,11 @@ class ReadRepeatMatch implements CigarHandler
         if(!shouldDropRead)
         {
             int readRepeatLength = numAligned + numInserted;
-            if(readRepeatLength != refGenomeHomopolymer.numRepeat - numDeleted + numInserted)
+            if(readRepeatLength != refGenomeMicrosatellite.baseLength() - numDeleted + numInserted)
             {
                 sLogger.error("read({}) {}, incorrect read repeat length({}) numAligned({}) numInserted({}) numDeleted({}) " +
                         "homopolymer({})",
-                        record, record.getCigarString(), readRepeatLength, numAligned, numInserted, numDeleted, refGenomeHomopolymer.genomeRegion);
+                        record, record.getCigarString(), readRepeatLength, numAligned, numInserted, numDeleted, refGenomeMicrosatellite.genomeRegion);
             }
         }
     }
@@ -66,16 +67,22 @@ class ReadRepeatMatch implements CigarHandler
         return readRepeatLength;
     }
 
-    public static ReadRepeatMatch from(final RefGenomeHomopolymer refGenomeHomopolymer, final SAMRecord record)
+    public int numRepeatUnits()
     {
-        return new ReadRepeatMatch(refGenomeHomopolymer, record);
+        return readRepeatLength() / refGenomeMicrosatellite.unit.length;
+    }
+
+    public static ReadRepeatMatch from(final RefGenomeMicrosatellite refGenomeMicrosatellite, final SAMRecord record)
+    {
+        return new ReadRepeatMatch(refGenomeMicrosatellite, record);
     }
 
     public void handleAlignment(final SAMRecord record, final CigarElement e, final int startReadIndex, final int startRefPos)
     {
         // check if this alignment spans the repeat
-        int repeatAlignStart = Math.max(startRefPos, refGenomeHomopolymer.referenceStart());
-        int repeatAlignEnd = Math.min(startRefPos + e.getLength() - 1, refGenomeHomopolymer.referenceEnd());
+        // TODO: check for substitution??
+        int repeatAlignStart = Math.max(startRefPos, refGenomeMicrosatellite.referenceStart());
+        int repeatAlignEnd = Math.min(startRefPos + e.getLength() - 1, refGenomeMicrosatellite.referenceEnd());
 
         if(repeatAlignStart <= repeatAlignEnd)
         {
@@ -85,25 +92,28 @@ class ReadRepeatMatch implements CigarHandler
 
     public void handleInsert(final SAMRecord record, final CigarElement e, final int readIndex, final int refPos)
     {
-        if(refPos >= refGenomeHomopolymer.referenceStart() && refPos <= refGenomeHomopolymer.referenceEnd() + 1)
+        if(refPos >= refGenomeMicrosatellite.referenceStart() && refPos <= refGenomeMicrosatellite.referenceEnd() + 1)
         {
             sLogger.trace("read: {} inserted {} bases", record, e.getLength());
 
-            // the insert is in the same base, we should check if the base is the repeat base
-            for(int i = readIndex; i < readIndex + e.getLength(); ++i)
+            // check the repeat unit
+            for(int i = 0; i < e.getLength(); ++i)
             {
-                if(record.getReadBases()[i] != refGenomeHomopolymer.base)
+                // the inserted bases must be a multiple of the repeat unit
+                if(record.getReadBases()[readIndex + i] != refGenomeMicrosatellite.unit[ i % refGenomeMicrosatellite.unit.length ])
                 {
                     shouldDropRead = true;
                     // should drop this base
-                    sLogger.trace("read: {} inserted bases: {} vs ref: {} mismatch, dropping read",
-                            record, (char)record.getReadBases()[i], (char)refGenomeHomopolymer.base);
+                    sLogger.trace("read: {} inserted bases: {} vs ms unit: {} mismatch, dropping read",
+                            record, record.getReadString().substring(readIndex, readIndex + e.getLength()),
+                            refGenomeMicrosatellite.unitString());
+                    break;
                 }
             }
 
             numInserted += e.getLength();
         }
-        else if(refPos + MAX_DISTANCE >= refGenomeHomopolymer.referenceStart() && refPos - MAX_DISTANCE <= refGenomeHomopolymer.referenceEnd() + 1)
+        else if(refPos + MAX_DISTANCE >= refGenomeMicrosatellite.referenceStart() && refPos - MAX_DISTANCE <= refGenomeMicrosatellite.referenceEnd() + 1)
         {
             // there is an insert very close to the homopolymer, drop this read
             shouldDropRead = true;
@@ -113,13 +123,13 @@ class ReadRepeatMatch implements CigarHandler
     public void handleDelete(final SAMRecord record, final CigarElement e, final int readIndex, final int startRefPos)
     {
         int endRefPos = startRefPos + e.getLength() - 1;
-        if(startRefPos >= refGenomeHomopolymer.referenceStart() && endRefPos <= refGenomeHomopolymer.referenceEnd())
+        if(startRefPos >= refGenomeMicrosatellite.referenceStart() && endRefPos <= refGenomeMicrosatellite.referenceEnd())
         {
             // the whole delete is inside the repeat, this is nice simple case
             numDeleted += e.getLength();
         }
-        else if((startRefPos < refGenomeHomopolymer.referenceStart() && endRefPos >= refGenomeHomopolymer.referenceStart() - 1) ||
-                (startRefPos <= refGenomeHomopolymer.referenceEnd() + 1 && endRefPos > refGenomeHomopolymer.referenceEnd()))
+        else if((startRefPos < refGenomeMicrosatellite.referenceStart() && endRefPos >= refGenomeMicrosatellite.referenceStart() - 1) ||
+                (startRefPos <= refGenomeMicrosatellite.referenceEnd() + 1 && endRefPos > refGenomeMicrosatellite.referenceEnd()))
         {
             // if the delete cross over the start or the end, drop the read
             // also drop if the delete is just before the start of the polymer
@@ -130,7 +140,7 @@ class ReadRepeatMatch implements CigarHandler
     public void handleLeftSoftClip(final SAMRecord record, final CigarElement element)
     {
         // drop this read completely if the soft clip is near the repeat
-        if(record.getAlignmentStart() >= refGenomeHomopolymer.referenceStart())
+        if(record.getAlignmentStart() >= refGenomeMicrosatellite.referenceStart())
         {
             shouldDropRead = true;
         }
@@ -139,7 +149,7 @@ class ReadRepeatMatch implements CigarHandler
     public void handleRightSoftClip(final SAMRecord record, final CigarElement element, int startReadIndex, int startRefPosition)
     {
         // drop this read completely if the soft clip is inside the repeat
-        if(startRefPosition <= refGenomeHomopolymer.referenceEnd())
+        if(startRefPosition <= refGenomeMicrosatellite.referenceEnd())
         {
             shouldDropRead = true;
         }

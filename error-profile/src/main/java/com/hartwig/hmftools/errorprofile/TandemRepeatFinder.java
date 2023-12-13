@@ -85,6 +85,7 @@ public class TandemRepeatFinder
                         String pattern = seq.substring(j, i + 1);
                         Candidate c = new Candidate(pattern, j, i + 1);
                         currentCandidates.add(c);
+                        break;
                     }
                 }
             }

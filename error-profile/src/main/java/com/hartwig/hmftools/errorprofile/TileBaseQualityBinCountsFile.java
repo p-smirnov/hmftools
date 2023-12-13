@@ -65,7 +65,7 @@ public class TileBaseQualityBinCountsFile
 
         List<String> columns = Arrays.stream(Column.values()).map(Enum::name).collect(Collectors.toList());
 
-        new DelimFileWriter().write(filename, columns, baseQualBins, (baseQualityBin, row) ->
+        DelimFileWriter.write(filename, columns, baseQualBins, (baseQualityBin, row) ->
         {
             BaseQualityBinCounter.Count count = baseQualityBinCountMap.get(baseQualityBin);
             row.set(Column.flowcell, baseQualityBin.flowcell);

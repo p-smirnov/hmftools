@@ -19,7 +19,6 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.hartwig.hmftools.common.region.BaseRegion;
 import com.hartwig.hmftools.common.region.ChrBaseRegion;
 import com.hartwig.hmftools.common.samtools.BamSlicer;
-import com.hartwig.hmftools.errorprofile.ErrorProfileConfig;
 
 import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.LogManager;
@@ -35,27 +34,27 @@ public class SampleRepeatAnalyser
 {
     private static final Logger sLogger = LogManager.getLogger(SampleRepeatAnalyser.class);
 
-    private final List<RefGenomeHomopolymer> mRefGenomeHomopolymers;
+    private final List<RefGenomeMicrosatellite> mRefGenomeMicrosatellites;
 
     // for speed reasons we need to consolidate the chr base regions into bigger chunks
     private final Multimap<ChrBaseRegion, RepeatAnalyser> mRepeatAnalysers = ArrayListMultimap.create();
 
     public Collection<RepeatAnalyser> getRepeatAnalysers() { return mRepeatAnalysers.values(); }
 
-    public SampleRepeatAnalyser(List<RefGenomeHomopolymer> refGenomeHomopolymers, double samplingFraction)
+    public SampleRepeatAnalyser(List<RefGenomeMicrosatellite> refGenomeMicrosatellites, double samplingFraction)
     {
         Random random = new Random(0);
-        mRefGenomeHomopolymers = refGenomeHomopolymers.stream().filter(o -> random.nextDouble() <= samplingFraction).collect(Collectors.toList());
+        mRefGenomeMicrosatellites = refGenomeMicrosatellites.stream().filter(o -> random.nextDouble() <= samplingFraction).collect(Collectors.toList());
         partitionGenomeRepeats();
     }
 
     private void partitionGenomeRepeats()
     {
-        final int PARTITION_SIZE = 10_000_000;
+        final int PARTITION_SIZE = 1_000_000;
 
         mRepeatAnalysers.clear();
 
-        ImmutableListMultimap<String, RefGenomeHomopolymer> chromosomeRepeats = Multimaps.index(mRefGenomeHomopolymers, RefGenomeHomopolymer::chromosome);
+        ImmutableListMultimap<String, RefGenomeMicrosatellite> chromosomeRepeats = Multimaps.index(mRefGenomeMicrosatellites, RefGenomeMicrosatellite::chromosome);
 
         List<RepeatAnalyser> regionAnalysers = new ArrayList<>();
 
@@ -63,10 +62,10 @@ public class SampleRepeatAnalyser
         {
             ChrBaseRegion currentRegion = null;
 
-            List<RefGenomeHomopolymer> refGenomeHomopolymers = new ArrayList<>(chromosomeRepeats.get(chromosome));
-            refGenomeHomopolymers.sort(Comparator.comparing(RefGenomeHomopolymer::referenceStart));
+            List<RefGenomeMicrosatellite> refGenomeMicrosatellites = new ArrayList<>(chromosomeRepeats.get(chromosome));
+            refGenomeMicrosatellites.sort(Comparator.comparing(RefGenomeMicrosatellite::referenceStart));
 
-            for(RefGenomeHomopolymer refGenomeHomopolymer : refGenomeHomopolymers)
+            for(RefGenomeMicrosatellite refGenomeMicrosatellite : refGenomeMicrosatellites)
             {
                 if(currentRegion == null || currentRegion.baseLength() >= PARTITION_SIZE)
                 {
@@ -75,11 +74,11 @@ public class SampleRepeatAnalyser
                         mRepeatAnalysers.putAll(currentRegion, regionAnalysers);
                     }
 
-                    currentRegion = refGenomeHomopolymer.genomeRegion.clone();
+                    currentRegion = refGenomeMicrosatellite.genomeRegion.clone();
                     regionAnalysers.clear();
                 }
-                currentRegion.setEnd(refGenomeHomopolymer.genomeRegion.end());
-                regionAnalysers.add(new RepeatAnalyser(refGenomeHomopolymer));
+                currentRegion.setEnd(refGenomeMicrosatellite.genomeRegion.end());
+                regionAnalysers.add(new RepeatAnalyser(refGenomeMicrosatellite));
             }
 
             // final one
@@ -130,7 +129,7 @@ public class SampleRepeatAnalyser
 
         for(RepeatAnalyser analyser : repeatAnalysers)
         {
-            if(BaseRegion.positionsWithin(analyser.refGenomeHomopolymer.referenceStart(), analyser.refGenomeHomopolymer.referenceEnd(),
+            if(BaseRegion.positionsWithin(analyser.refGenomeMicrosatellite.referenceStart(), analyser.refGenomeMicrosatellite.referenceEnd(),
                     readAlignmentStart, readAlignmentEnd))
             {
                 analyser.addReadToStats(read);

@@ -47,7 +47,7 @@ public class TileBaseQualOutlierFile
 
         List<String> columns = Arrays.stream(Column.values()).map(Enum::name).collect(Collectors.toList());
 
-        new DelimFileWriter().write(filename, columns, sortedOutliers, (outlier, row) ->
+        DelimFileWriter.write(filename, columns, sortedOutliers, (outlier, row) ->
         {
             row.set(Column.flowcell, outlier.tileAdjustmentKey.flowcell);
             row.set(Column.lane, outlier.tileAdjustmentKey.lane);

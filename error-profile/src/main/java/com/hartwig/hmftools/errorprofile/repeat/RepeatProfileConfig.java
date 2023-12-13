@@ -30,6 +30,8 @@ public class RepeatProfileConfig
     public final String SampleId;
     public final String BamPath;
     public final String RefGenomeFile;
+
+    public final String RefGenomeMicrosatelliteFile;
     public final String OutputDir;
 
     public final int MinMappingQuality;
@@ -41,6 +43,7 @@ public class RepeatProfileConfig
 
     public final List<ChrBaseRegion> SpecificRegions;
 
+    private static final String REF_GENOME_MICROSATELLITES = "ref_genome_microsatellites";
     private static final String MIN_MAP_QUALITY = "min_map_quality";
     private static final String SAMPLING_FRAC = "sampling_frac";
     public static final int DEFAULT_MIN_MAPPING_QUALITY = 50;
@@ -50,6 +53,7 @@ public class RepeatProfileConfig
         SampleId = configBuilder.getValue(SAMPLE);
         BamPath = configBuilder.getValue("bam");
         RefGenomeFile = configBuilder.getValue(REF_GENOME);
+        RefGenomeMicrosatelliteFile = configBuilder.getValue(REF_GENOME_MICROSATELLITES);
         OutputDir = parseOutputDir(configBuilder);
         Threads = parseThreads(configBuilder);
         MinMappingQuality = configBuilder.getInteger(MIN_MAP_QUALITY);
@@ -65,6 +69,8 @@ public class RepeatProfileConfig
 
         addRefGenomeVersion(configBuilder);
         configBuilder.addPath(REF_GENOME, true, REF_GENOME_CFG_DESC + ", required when using CRAM files");
+
+        configBuilder.addPath(REF_GENOME_MICROSATELLITES, true, "path to ref genome microsatellites tsv");
 
         addOutputDir(configBuilder);
 

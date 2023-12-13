@@ -24,7 +24,7 @@ public class ErrorProfileFile
     public static void write(final String filename, ErrorProfileStats errorProfileStats)
     {
         List<String> columns = Arrays.stream(Column.values()).map(Enum::name).collect(Collectors.toList());
-        new DelimFileWriter().write(filename, columns, List.of(errorProfileStats), (stats, row) ->
+        DelimFileWriter.write(filename, columns, List.of(errorProfileStats), (stats, row) ->
         {
             row.set(Column.numReads, stats.numReads);
             row.set(Column.numSplitReads, stats.numSplitReads);

@@ -60,7 +60,7 @@ public class BaseQualityBinCountsFile
 
         List<String> columns = Arrays.stream(Column.values()).map(Enum::name).collect(Collectors.toList());
 
-        new DelimFileWriter().write(filename, columns, baseQualBins, (baseQualityBin, row) ->
+        DelimFileWriter.write(filename, columns, baseQualBins, (baseQualityBin, row) ->
         {
             BaseQualityBinCounter.Count count = baseQualityBinCountMap.get(baseQualityBin);
             row.set(Column.firstOfPair, baseQualityBin.firstOfPair);
@@ -90,7 +90,7 @@ public class BaseQualityBinCountsFile
 
         List<String> columns = Arrays.stream(Column.values()).map(Enum::name).collect(Collectors.toList());
 
-        new DelimFileWriter().write(filename, columns, baseQualBins, (baseQualityBin, row) ->
+        DelimFileWriter.write(filename, columns, baseQualBins, (baseQualityBin, row) ->
         {
             BaseQualityBinCounter.Count count = baseQualityBinCountMap.get(baseQualityBin);
             row.set(Column.firstOfPair, baseQualityBin.firstOfPair);
