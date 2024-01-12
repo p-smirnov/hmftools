@@ -18,14 +18,14 @@ import static org.junit.Assert.assertEquals;
 import static htsjdk.samtools.SAMUtils.phredToFastq;
 
 import com.hartwig.hmftools.common.region.ChrBaseRegion;
-import com.hartwig.hmftools.sage.old.IndexedBases;
 import com.hartwig.hmftools.sage.common.RefSequence;
 import com.hartwig.hmftools.sage.common.RegionTaskTester;
 import com.hartwig.hmftools.sage.common.SageVariant;
 import com.hartwig.hmftools.sage.common.SimpleVariant;
-import com.hartwig.hmftools.sage.pipeline.RegionTask;
-import com.hartwig.hmftools.sage.old.ReadContext;
 import com.hartwig.hmftools.sage.common.VariantTier;
+import com.hartwig.hmftools.sage.old.IndexedBases;
+import com.hartwig.hmftools.sage.old.ReadContext;
+import com.hartwig.hmftools.sage.pipeline.RegionTask;
 import com.hartwig.hmftools.sage.quality.QualityCalculator;
 
 import org.apache.logging.log4j.util.Strings;
@@ -280,20 +280,21 @@ public class ReadContextCounterTest
         TestCase.assertNotNull(var3);
         TestCase.assertNotNull(var4);
         TestCase.assertNotNull(var5);
-        TestCase.assertEquals(5, var1.tumorReadCounters().get(0).readSupportCounts().Full);
-        TestCase.assertEquals(1, var1.tumorReadCounters().get(0).readSupportCounts().Partial);
+        TestCase.assertNotNull(var6);
+        TestCase.assertEquals(6, var1.tumorReadCounters().get(0).readSupportCounts().Full);
+        TestCase.assertEquals(0, var1.tumorReadCounters().get(0).readSupportCounts().Partial);
 
-        TestCase.assertEquals(5, var2.tumorReadCounters().get(0).readSupportCounts().Full);
-        TestCase.assertEquals(1, var2.tumorReadCounters().get(0).readSupportCounts().Partial);
+        TestCase.assertEquals(6, var2.tumorReadCounters().get(0).readSupportCounts().Full);
+        TestCase.assertEquals(0, var2.tumorReadCounters().get(0).readSupportCounts().Partial);
 
-        TestCase.assertEquals(5, var3.tumorReadCounters().get(0).readSupportCounts().Full);
-        TestCase.assertEquals(1, var3.tumorReadCounters().get(0).readSupportCounts().Partial);
+        TestCase.assertEquals(3, var3.tumorReadCounters().get(0).readSupportCounts().Full);
+        TestCase.assertEquals(0, var3.tumorReadCounters().get(0).readSupportCounts().Partial);
 
-        TestCase.assertEquals(4, var4.tumorReadCounters().get(0).readSupportCounts().Full);
-        TestCase.assertEquals(1, var4.tumorReadCounters().get(0).readSupportCounts().Partial);
+        TestCase.assertEquals(3, var4.tumorReadCounters().get(0).readSupportCounts().Full);
+        TestCase.assertEquals(0, var4.tumorReadCounters().get(0).readSupportCounts().Partial);
 
-        TestCase.assertEquals(5, var5.tumorReadCounters().get(0).readSupportCounts().Full);
-        TestCase.assertEquals(1, var5.tumorReadCounters().get(0).readSupportCounts().Partial);
+        TestCase.assertEquals(3, var5.tumorReadCounters().get(0).readSupportCounts().Full);
+        TestCase.assertEquals(0, var5.tumorReadCounters().get(0).readSupportCounts().Partial);
 
         TestCase.assertEquals(3, var6.tumorReadCounters().get(0).readSupportCounts().Full);
         TestCase.assertEquals(0, var6.tumorReadCounters().get(0).readSupportCounts().Partial);

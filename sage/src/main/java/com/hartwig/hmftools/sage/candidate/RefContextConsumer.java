@@ -6,8 +6,8 @@ import static java.lang.Math.round;
 import static com.hartwig.hmftools.common.region.BaseRegion.positionWithin;
 import static com.hartwig.hmftools.common.region.BaseRegion.positionsOverlap;
 import static com.hartwig.hmftools.sage.SageConstants.MIN_INSERT_ALIGNMENT_OVERLAP;
-import static com.hartwig.hmftools.sage.SageConstants.SC_INSERT_MIN_SC_LENGTH;
 import static com.hartwig.hmftools.sage.SageConstants.SC_INSERT_MIN_LENGTH;
+import static com.hartwig.hmftools.sage.SageConstants.SC_INSERT_MIN_SC_LENGTH;
 import static com.hartwig.hmftools.sage.SageConstants.SC_READ_EVENTS_FACTOR;
 import static com.hartwig.hmftools.sage.quality.QualityCalculator.isImproperPair;
 
@@ -20,17 +20,17 @@ import java.util.function.Function;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.hartwig.hmftools.common.genome.chromosome.MitochondrialChromosome;
-import com.hartwig.hmftools.common.hla.HlaCommon;
 import com.hartwig.hmftools.common.bam.CigarHandler;
 import com.hartwig.hmftools.common.bam.CigarTraversal;
+import com.hartwig.hmftools.common.genome.chromosome.MitochondrialChromosome;
+import com.hartwig.hmftools.common.hla.HlaCommon;
 import com.hartwig.hmftools.common.region.ChrBaseRegion;
 import com.hartwig.hmftools.common.variant.hotspot.VariantHotspot;
-import com.hartwig.hmftools.sage.common.RefSequence;
 import com.hartwig.hmftools.sage.SageConfig;
+import com.hartwig.hmftools.sage.common.NumberEvents;
+import com.hartwig.hmftools.sage.common.RefSequence;
 import com.hartwig.hmftools.sage.old.ReadContext;
 import com.hartwig.hmftools.sage.old.ReadContextFactory;
-import com.hartwig.hmftools.sage.common.NumberEvents;
 import com.hartwig.hmftools.sage.select.ReadPanelStatus;
 
 import htsjdk.samtools.CigarElement;
@@ -566,7 +566,8 @@ public class RefContextConsumer
         return quality;
     }
 
-    private void checkCoreExtension(final List<AltRead> altReads)
+    @VisibleForTesting
+    public static void checkCoreExtension(final List<AltRead> altReads)
     {
         if(altReads.size() < 2)
             return;
@@ -580,13 +581,15 @@ public class RefContextConsumer
                 for(int j = altReads.size() - 1; j > i; j--)
                 {
                     final AltRead nextIndel = altReads.get(j);
-                    if(nextIndel != null && nextIndel.isIndel() && nextIndel.containsReadContext())
+                    if(nextIndel == null || !nextIndel.isIndel() || !nextIndel.containsReadContext())
                     {
-                        if(nextIndel.leftCoreIndex() - nextIndel.length() <= snv.rightCoreIndex())
-                        {
-                            snv.extend(nextIndel);
-                            nextIndel.extend(snv);
-                        }
+                        continue;
+                    }
+
+                    if(nextIndel.leftCorePosition() <= snv.rightCorePosition())
+                    {
+                        snv.extend(nextIndel);
+                        nextIndel.extend(snv);
                     }
                 }
             }
@@ -601,13 +604,15 @@ public class RefContextConsumer
                 for(int j = 0; j < i; j++)
                 {
                     final AltRead previousIndel = altReads.get(j);
-                    if(previousIndel != null && previousIndel.isIndel() && previousIndel.containsReadContext())
+                    if(previousIndel == null || !previousIndel.isIndel() || !previousIndel.containsReadContext())
                     {
-                        if(previousIndel.rightCoreIndex() + previousIndel.length() >= snv.leftCoreIndex())
-                        {
-                            previousIndel.extend(snv);
-                            snv.extend(previousIndel);
-                        }
+                        continue;
+                    }
+
+                    if(previousIndel.rightCorePosition() - previousIndel.indelLength() >= snv.leftCorePosition())
+                    {
+                        previousIndel.extend(snv);
+                        snv.extend(previousIndel);
                     }
                 }
             }
