@@ -54,7 +54,6 @@ public class RepeatProfileApplication
         }
 
         List<RefGenomeMicrosatellite> refGenomeMicrosatellites = RefGenomeMicrosatelliteFile.read(mConfig.RefGenomeMicrosatelliteFile);
-        refGenomeMicrosatellites = RefGenomeMicrosatelliesFinder.filterMicrosatellites(refGenomeMicrosatellites, 50000);
 
         sLogger.info("loaded {} microsatellites regions", refGenomeMicrosatellites.size());
 

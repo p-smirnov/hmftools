@@ -29,6 +29,8 @@ public class RepeatAnalyserTest
         Assert.assertEquals(10, cigarHandler.numAligned);
         Assert.assertEquals(0, cigarHandler.numDeleted);
         Assert.assertEquals(0, cigarHandler.numInserted);
+        Assert.assertEquals(5, cigarHandler.numMatchedBefore);
+        Assert.assertEquals(5, cigarHandler.numMatchedAfter);
 
         // test such that it barely matches the range
         record = createSamRecord(chromosome, 101, "10M", true, false);
@@ -68,32 +70,42 @@ public class RepeatAnalyserTest
 
         // test 2 base insert right before the repeat bases
         SAMRecord record = createSamRecord(chromosome, 91, "10M2I20M", true, false);
+        record.setReadString("TTTTTTTTTTAAAAAAAAAAAAGGGGGGGGGG");
 
         ReadRepeatMatch cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
 
+        Assert.assertFalse(cigarHandler.shouldDropRead);
         Assert.assertEquals(10, cigarHandler.numAligned);
         Assert.assertEquals(0, cigarHandler.numDeleted);
         Assert.assertEquals(2, cigarHandler.numInserted);
 
         // test 2 base insert right after the repeat bases
-        record = createSamRecord(chromosome, 101, "10M2I20M", true, false);
+        record = createSamRecord(chromosome, 91, "20M2I10M", true, false);
+        record.setReadString("TTTTTTTTTTAAAAAAAAAAAAGGGGGGGGGG");
+
         cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
 
+        Assert.assertFalse(cigarHandler.shouldDropRead);
         Assert.assertEquals(10, cigarHandler.numAligned);
         Assert.assertEquals(0, cigarHandler.numDeleted);
         Assert.assertEquals(2, cigarHandler.numInserted);
 
         // test 2 base insert in the middle
-        record = createSamRecord(chromosome, 101, "5M2I20M", true, false);
+        record = createSamRecord(chromosome, 91, "15M2I15M", true, false);
+        record.setReadString("TTTTTTTTTTAAAAAAAAAAAAGGGGGGGGGG");
+
         cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
 
+        Assert.assertFalse(cigarHandler.shouldDropRead);
         Assert.assertEquals(10, cigarHandler.numAligned);
         Assert.assertEquals(0, cigarHandler.numDeleted);
         Assert.assertEquals(2, cigarHandler.numInserted);
 
-        record = createSamRecord(chromosome, 97, "5M2I20M", true, false);
+        record = createSamRecord(chromosome, 92, "10M2I20M", true, false);
+        record.setReadString("TTTTTTTTTTAAAAAAAAAAAAGGGGGGGGGG");
         cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
 
+        Assert.assertFalse(cigarHandler.shouldDropRead);
         Assert.assertEquals(10, cigarHandler.numAligned);
         Assert.assertEquals(0, cigarHandler.numDeleted);
         Assert.assertEquals(2, cigarHandler.numInserted);
@@ -115,13 +127,13 @@ public class RepeatAnalyserTest
         Assert.assertTrue(cigarHandler.shouldDropRead);
 
         // test 2 base delete right after the repeat bases, this should also disqualify the read
-        record = createSamRecord(chromosome, 101, "10M2D20M", true, false);
+        record = createSamRecord(chromosome, 91, "20M2D20M", true, false);
         cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
 
         Assert.assertTrue(cigarHandler.shouldDropRead);
 
         // test 2 base delete in the middle
-        record = createSamRecord(chromosome, 101, "5M2D20M", true, false);
+        record = createSamRecord(chromosome, 91, "15M2D20M", true, false);
         cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
 
         Assert.assertFalse(cigarHandler.shouldDropRead);
@@ -164,6 +176,39 @@ public class RepeatAnalyserTest
         cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
 
         Assert.assertTrue(cigarHandler.shouldDropRead);
+    }
+
+    // check that the code respect that there must be 5 flanking bases aligned on each side of the microsatellite
+    @Test
+    public void testFlankingBaseMatch()
+    {
+        final String chromosome = "chr1";
+
+        // 10 repeat of As
+        RefGenomeMicrosatellite refGenomeMicrosatellite = new RefGenomeMicrosatellite(chromosome, 101, 110, A);
+
+        // test a record that matches the whole repeat
+        SAMRecord record = createSamRecord(chromosome, 97, "151M", true, false);
+
+        ReadRepeatMatch cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
+
+        Assert.assertTrue(cigarHandler.shouldDropRead);
+        Assert.assertEquals(4, cigarHandler.numMatchedBefore);
+        Assert.assertEquals(5, cigarHandler.numMatchedAfter);
+        Assert.assertEquals(10, cigarHandler.numAligned);
+        Assert.assertEquals(0, cigarHandler.numDeleted);
+        Assert.assertEquals(0, cigarHandler.numInserted);
+
+        // test such that it barely matches the range
+        record = createSamRecord(chromosome, 91, "24M", true, false);
+        cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
+
+        Assert.assertTrue(cigarHandler.shouldDropRead);
+        Assert.assertEquals(5, cigarHandler.numMatchedBefore);
+        Assert.assertEquals(4, cigarHandler.numMatchedAfter);
+        Assert.assertEquals(10, cigarHandler.numAligned);
+        Assert.assertEquals(0, cigarHandler.numDeleted);
+        Assert.assertEquals(0, cigarHandler.numInserted);
     }
 
     private static SAMRecord createSamRecord(final String chromosome, int readStart, final String cigar, boolean firstInPair, boolean isReversed)

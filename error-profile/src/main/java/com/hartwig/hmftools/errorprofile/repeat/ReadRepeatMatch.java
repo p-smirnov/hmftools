@@ -1,6 +1,6 @@
 package com.hartwig.hmftools.errorprofile.repeat;
 
-import static com.hartwig.hmftools.errorprofile.repeat.RepeatProfileConstant.MAX_DISTANCE;
+import static com.hartwig.hmftools.errorprofile.repeat.RepeatProfileConstant.MIN_FLANKING_BASE_MATCHES;
 
 import com.hartwig.hmftools.errorprofile.utils.CigarHandler;
 
@@ -10,7 +10,6 @@ import org.apache.logging.log4j.Logger;
 
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.util.StringUtil;
 
 // we need to look through the cigar to decide whether this read has matches
 // we can either
@@ -27,6 +26,9 @@ class ReadRepeatMatch implements CigarHandler
     int numInserted = 0;
     int numDeleted = 0;
 
+    int numMatchedBefore = 0;
+    int numMatchedAfter = 0;
+
     private ReadRepeatMatch(final RefGenomeMicrosatellite refGenomeMicrosatellite, final SAMRecord record)
     {
         this.refGenomeMicrosatellite = refGenomeMicrosatellite;
@@ -40,6 +42,14 @@ class ReadRepeatMatch implements CigarHandler
         else
         {
             traverseCigar(record);
+        }
+
+        // check that we got the flanking bases aligned
+        if(numMatchedBefore < MIN_FLANKING_BASE_MATCHES || numMatchedAfter < MIN_FLANKING_BASE_MATCHES)
+        {
+            shouldDropRead = true;
+            sLogger.trace("read: {} not enough flanking bases aligned(before: {}, after: {}), dropping read",
+                    record, numMatchedBefore, numMatchedAfter);
         }
 
         // do some validation and logging
@@ -81,12 +91,29 @@ class ReadRepeatMatch implements CigarHandler
     {
         // check if this alignment spans the repeat
         // TODO: check for substitution??
-        int repeatAlignStart = Math.max(startRefPos, refGenomeMicrosatellite.referenceStart());
-        int repeatAlignEnd = Math.min(startRefPos + e.getLength() - 1, refGenomeMicrosatellite.referenceEnd());
+        int numAlignedToMs = Math.min(startRefPos + e.getLength(), refGenomeMicrosatellite.referenceEnd() + 1) -
+                             Math.max(startRefPos, refGenomeMicrosatellite.referenceStart());
 
-        if(repeatAlignStart <= repeatAlignEnd)
+        if(numAlignedToMs > 0)
         {
-            numAligned += repeatAlignEnd - repeatAlignStart + 1;
+            // this is in the repeat section
+            numAligned += numAlignedToMs;
+        }
+
+        int numAlignedToFlankingStart = Math.min(startRefPos + e.getLength(), refGenomeMicrosatellite.referenceStart()) -
+                                        Math.max(startRefPos, refGenomeMicrosatellite.referenceStart() - MIN_FLANKING_BASE_MATCHES);
+
+        if(numAlignedToFlankingStart > 0)
+        {
+            numMatchedBefore += numAlignedToFlankingStart;
+        }
+
+        int numAlignedToFlankingEnd = Math.min(startRefPos + e.getLength(), refGenomeMicrosatellite.referenceEnd() + 1 + MIN_FLANKING_BASE_MATCHES) -
+                Math.max(startRefPos, refGenomeMicrosatellite.referenceEnd() + 1);
+
+        if(numAlignedToFlankingEnd > 0)
+        {
+            numMatchedAfter += numAlignedToFlankingEnd;
         }
     }
 
@@ -113,7 +140,8 @@ class ReadRepeatMatch implements CigarHandler
 
             numInserted += e.getLength();
         }
-        else if(refPos + MAX_DISTANCE >= refGenomeMicrosatellite.referenceStart() && refPos - MAX_DISTANCE <= refGenomeMicrosatellite.referenceEnd() + 1)
+        else if(refPos + MIN_FLANKING_BASE_MATCHES >= refGenomeMicrosatellite.referenceStart() &&
+                refPos - MIN_FLANKING_BASE_MATCHES <= refGenomeMicrosatellite.referenceEnd() + 1)
         {
             // there is an insert very close to the homopolymer, drop this read
             shouldDropRead = true;

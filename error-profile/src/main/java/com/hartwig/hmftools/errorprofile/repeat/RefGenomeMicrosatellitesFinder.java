@@ -10,6 +10,7 @@ import static com.hartwig.hmftools.common.utils.file.FileWriterUtils.addOutputDi
 import static com.hartwig.hmftools.common.utils.file.FileWriterUtils.checkCreateOutputDir;
 import static com.hartwig.hmftools.common.utils.file.FileWriterUtils.parseOutputDir;
 import static com.hartwig.hmftools.errorprofile.repeat.RepeatProfileConstant.MAX_MICROSAT_UNIT_LENGTH;
+import static com.hartwig.hmftools.errorprofile.repeat.RepeatProfileConstant.MIN_ADJACENT_MICROSAT_DISTANCE;
 import static com.hartwig.hmftools.errorprofile.repeat.RepeatProfileConstant.MIN_MICROSAT_UNIT_COUNT;
 
 import static htsjdk.samtools.util.SequenceUtil.N;
@@ -17,16 +18,13 @@ import static htsjdk.samtools.util.SequenceUtil.N;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Map;
 import java.util.Random;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
 import com.hartwig.hmftools.common.genome.chromosome.HumanChromosome;
 import com.hartwig.hmftools.common.genome.refgenome.RefGenomeVersion;
 import com.hartwig.hmftools.common.utils.config.ConfigBuilder;
@@ -43,9 +41,9 @@ import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.util.StringUtil;
 
 // simple class to find microsatellites regions in reference genome
-public class RefGenomeMicrosatelliesFinder
+public class RefGenomeMicrosatellitesFinder
 {
-    public static final Logger sLogger = LogManager.getLogger(RefGenomeMicrosatelliesFinder.class);
+    public static final Logger sLogger = LogManager.getLogger(RefGenomeMicrosatellitesFinder.class);
 
     static class Candidate
     {
@@ -136,7 +134,7 @@ public class RefGenomeMicrosatelliesFinder
     static void findMicrosatellites(ReferenceSequenceFile referenceSequenceFile, int minNumRepeats,
             Consumer<RefGenomeMicrosatellite> refGenomeMsConsumer, int chunkSize)
     {
-        int numMicrosatellites = 0;
+        MutableInt microsatelliteCounter = new MutableInt(0);
 
         List<SAMSequenceRecord> seqRecords = referenceSequenceFile.getSequenceDictionary().getSequences()
                 .stream()
@@ -146,6 +144,10 @@ public class RefGenomeMicrosatelliesFinder
         for(SAMSequenceRecord sequenceRecord : seqRecords)
         {
             int length = sequenceRecord.getSequenceLength();
+
+            // pending candidate, we do not accept a candidate when it is completed. We want to avoid
+            // candidates that are too close to each other. They are dropped if too close.
+            List<RefGenomeMicrosatellite> pendingMicrosatellies = new ArrayList<>();
 
             // current best candidate
             Candidate bestCandidate = null;
@@ -213,10 +215,10 @@ public class RefGenomeMicrosatelliesFinder
                                     bestCandidate.startIndex,
                                     bestCandidate.startIndex + baseLength - 1, // change to inclusive
                                     bestCandidate.pattern);
-                            ++numMicrosatellites;
-                            refGenomeMsConsumer.accept(refGenomeMicrosatellite);
+                            pendingMicrosatellies.add(refGenomeMicrosatellite);
 
-                            sLogger.trace("microsatellite: {}", refGenomeMicrosatellite);
+                            // check the panding microsatellites, see if any can be accepted
+                            checkPendingMicrosatellites(pendingMicrosatellies, refGenomeMsConsumer, microsatelliteCounter);
                         }
 
                         bestCandidate = null;
@@ -242,10 +244,62 @@ public class RefGenomeMicrosatelliesFinder
                 }
             }
 
+            if(pendingMicrosatellies.size() == 1)
+            {
+                microsatelliteCounter.increment();
+                refGenomeMsConsumer.accept(pendingMicrosatellies.get(0));
+            }
+
             sLogger.info("finished chromosome {}", sequenceRecord.getSequenceName());
         }
 
-        sLogger.info("found {} microsatellite regions in ref genome", numMicrosatellites);
+        sLogger.info("found {} microsatellite regions in ref genome", microsatelliteCounter);
+    }
+
+    // the aim of this code is to remove microsatellites that are too close to each other
+    // We do not try to merge them for now, even though tools such as MsDetector would.
+    // i.e. AAAAATAAAAAAA
+    static void checkPendingMicrosatellites(List<RefGenomeMicrosatellite> pendingMicrosatellies, Consumer<RefGenomeMicrosatellite> refGenomeMsConsumer,
+            MutableInt microsatelliteCounter)
+    {
+        int groupStart = 0;
+
+        // check the panding microsatellites, see if any can be accepted
+        for(int i = 0; i < pendingMicrosatellies.size() - 1; ++i)
+        {
+            RefGenomeMicrosatellite ms1 = pendingMicrosatellies.get(i);
+            RefGenomeMicrosatellite ms2 = pendingMicrosatellies.get(i + 1);
+
+            if((ms2.referenceStart() - ms1.referenceEnd()) > MIN_ADJACENT_MICROSAT_DISTANCE)
+            {
+                // previous group finished, if previous group only has 1 ms, we accept it, otherwise
+                // remove them all from the pending list
+                if(i == groupStart)
+                {
+                    // only 1 item, accept this
+                    refGenomeMsConsumer.accept(ms1);
+                    microsatelliteCounter.increment();
+                    sLogger.trace("microsatellite: {}", ms1);
+                }
+                else
+                {
+                    // ms are too close to each other, remove them
+                    for(int j = groupStart; j <= i; ++j)
+                    {
+                        sLogger.trace("reject microsatellite as too close to neighbour: {}", pendingMicrosatellies.get(j));
+                    }
+                }
+
+                // update group start
+                groupStart = i + 1;
+            }
+        }
+
+        // we can remove anything before groupStart
+        if(groupStart > 0)
+        {
+            pendingMicrosatellies.subList(0, groupStart).clear();
+        }
     }
 
     // overload for easy testing
@@ -267,7 +321,7 @@ public class RefGenomeMicrosatelliesFinder
         // should be able to use a groupby method in guava
         for(RefGenomeMicrosatellite microsatellite : inputList)
         {
-            Pair<String, Integer> k = Pair.of(microsatellite.unitString(), microsatellite.genomeRegion.baseLength());
+            Pair<String, Integer> k = Pair.of(microsatellite.unitString(), microsatellite.numRepeat);
             unitLengthMicrosatelliteMap.put(k, microsatellite);
         }
 
@@ -334,7 +388,7 @@ public class RefGenomeMicrosatelliesFinder
         try (RefGenomeMicrosatelliteFile refGenomeMicrosatelliteFile = new RefGenomeMicrosatelliteFile(
                 RefGenomeMicrosatelliteFile.generateFilename(config.outputDir, config.refGenomeVersion)))
         {
-            RefGenomeMicrosatelliesFinder.findMicrosatellites(refGenome, MIN_MICROSAT_UNIT_COUNT, refGenomeMicrosatelliteFile::writeRow);
+            RefGenomeMicrosatellitesFinder.findMicrosatellites(refGenome, MIN_MICROSAT_UNIT_COUNT, refGenomeMicrosatelliteFile::writeRow);
 
             //filterSpecificRegions(refGenomeMicrosatellites);
         }

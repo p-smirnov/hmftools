@@ -1,8 +1,5 @@
 package com.hartwig.hmftools.errorprofile.repeat;
 
-import java.util.Arrays;
-
-import com.google.common.collect.Interner;
 import com.hartwig.hmftools.common.region.ChrBaseRegion;
 
 import htsjdk.samtools.util.StringUtil;

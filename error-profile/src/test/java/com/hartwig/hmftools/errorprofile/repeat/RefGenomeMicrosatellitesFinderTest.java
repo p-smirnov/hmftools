@@ -16,7 +16,7 @@ import htsjdk.samtools.reference.ReferenceSequence;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.util.StringUtil;
 
-public class RefGenomeMicrosatelliesFinderTest
+public class RefGenomeMicrosatellitesFinderTest
 {
     static class TestReferenceSequenceFile implements ReferenceSequenceFile
     {
@@ -81,7 +81,7 @@ public class RefGenomeMicrosatelliesFinderTest
 
         Assert.assertEquals("GGGGGGA", refSeqFile.getSubsequenceAt("chr1", 12, 18).getBaseString());
 
-        List<RefGenomeMicrosatellite> polymers = RefGenomeMicrosatelliesFinder.findMicrosatellites(refSeqFile, 4, 20);
+        List<RefGenomeMicrosatellite> polymers = RefGenomeMicrosatellitesFinder.findMicrosatellites(refSeqFile, 4, 20);
 
         Assert.assertEquals(2, polymers.size());
         RefGenomeMicrosatellite polymer = polymers.get(0);
@@ -99,7 +99,7 @@ public class RefGenomeMicrosatelliesFinderTest
         Assert.assertEquals(7, polymer.numRepeat);
 
         // try different chunk size
-        polymers = RefGenomeMicrosatelliesFinder.findMicrosatellites(refSeqFile, 4, 5);
+        polymers = RefGenomeMicrosatellitesFinder.findMicrosatellites(refSeqFile, 4, 5);
 
         Assert.assertEquals(2, polymers.size());
         polymer = polymers.get(0);
@@ -123,7 +123,7 @@ public class RefGenomeMicrosatelliesFinderTest
         String sequence = "TGATCATCATCATCATCATGATCGGGGGGATCGATCAATATATATTCG";
         TestReferenceSequenceFile refSeqFile = new TestReferenceSequenceFile(sequence);
 
-        List<RefGenomeMicrosatellite> microsatellites = RefGenomeMicrosatelliesFinder.findMicrosatellites(refSeqFile, 4, 20);
+        List<RefGenomeMicrosatellite> microsatellites = RefGenomeMicrosatellitesFinder.findMicrosatellites(refSeqFile, 4, 20);
 
         Assert.assertEquals(3, microsatellites.size());
         RefGenomeMicrosatellite microsatellite = microsatellites.get(0);
@@ -148,7 +148,7 @@ public class RefGenomeMicrosatelliesFinderTest
         Assert.assertEquals(4, microsatellite.numRepeat);
 
         // try different chunk size
-        microsatellites = RefGenomeMicrosatelliesFinder.findMicrosatellites(refSeqFile, 4, 5);
+        microsatellites = RefGenomeMicrosatellitesFinder.findMicrosatellites(refSeqFile, 4, 5);
 
         Assert.assertEquals(3, microsatellites.size());
         microsatellite = microsatellites.get(0);
@@ -174,22 +174,39 @@ public class RefGenomeMicrosatelliesFinderTest
     }
 
     @Test
+    public void testMicrosatellitesMinAdjacentDist()
+    {
+        // the first 3 microsatellites are too close to each other, they are rejected
+        String sequence = "TGATCATCATCATCATCCGGGGGGAAAAAATCGATCAATATATATTCG";
+        TestReferenceSequenceFile refSeqFile = new TestReferenceSequenceFile(sequence);
+
+        List<RefGenomeMicrosatellite> microsatellites = RefGenomeMicrosatellitesFinder.findMicrosatellites(refSeqFile, 4, 20);
+        Assert.assertEquals(1, microsatellites.size());
+        RefGenomeMicrosatellite microsatellite = microsatellites.get(0);
+        Assert.assertEquals("chr1", microsatellite.genomeRegion.Chromosome);
+        Assert.assertEquals(38, microsatellite.genomeRegion.start());
+        Assert.assertEquals(45, microsatellite.genomeRegion.end());
+        Assert.assertEquals("AT", microsatellite.unitString());
+        Assert.assertEquals(4, microsatellite.numRepeat);
+    }
+
+    @Test
     public void testIsValidUnit()
     {
         // test that we are able to weed out repeat units that are actually just multiple of smaller units
-        Assert.assertTrue(RefGenomeMicrosatelliesFinder.isValidUnit(StringUtil.stringToBytes("ATA")));
-        Assert.assertFalse(RefGenomeMicrosatelliesFinder.isValidUnit(StringUtil.stringToBytes("ATAT")));
-        Assert.assertFalse(RefGenomeMicrosatelliesFinder.isValidUnit(StringUtil.stringToBytes("ATATAT")));
-        Assert.assertFalse(RefGenomeMicrosatelliesFinder.isValidUnit(StringUtil.stringToBytes("AA")));
-        Assert.assertFalse(RefGenomeMicrosatelliesFinder.isValidUnit(StringUtil.stringToBytes("TTT")));
-        Assert.assertFalse(RefGenomeMicrosatelliesFinder.isValidUnit(StringUtil.stringToBytes("GGGG")));
-        Assert.assertFalse(RefGenomeMicrosatelliesFinder.isValidUnit(StringUtil.stringToBytes("GGGGG")));
-        Assert.assertTrue(RefGenomeMicrosatelliesFinder.isValidUnit(StringUtil.stringToBytes("ATT")));
-        Assert.assertTrue(RefGenomeMicrosatelliesFinder.isValidUnit(StringUtil.stringToBytes("ATTAT")));
-        Assert.assertTrue(RefGenomeMicrosatelliesFinder.isValidUnit(StringUtil.stringToBytes("ATGAT")));
-        Assert.assertFalse(RefGenomeMicrosatelliesFinder.isValidUnit(StringUtil.stringToBytes("ATTATT")));
-        Assert.assertFalse(RefGenomeMicrosatelliesFinder.isValidUnit(StringUtil.stringToBytes("TTATTA")));
-        Assert.assertFalse(RefGenomeMicrosatelliesFinder.isValidUnit(StringUtil.stringToBytes("ATGATG")));
+        Assert.assertTrue(RefGenomeMicrosatellitesFinder.isValidUnit(StringUtil.stringToBytes("ATA")));
+        Assert.assertFalse(RefGenomeMicrosatellitesFinder.isValidUnit(StringUtil.stringToBytes("ATAT")));
+        Assert.assertFalse(RefGenomeMicrosatellitesFinder.isValidUnit(StringUtil.stringToBytes("ATATAT")));
+        Assert.assertFalse(RefGenomeMicrosatellitesFinder.isValidUnit(StringUtil.stringToBytes("AA")));
+        Assert.assertFalse(RefGenomeMicrosatellitesFinder.isValidUnit(StringUtil.stringToBytes("TTT")));
+        Assert.assertFalse(RefGenomeMicrosatellitesFinder.isValidUnit(StringUtil.stringToBytes("GGGG")));
+        Assert.assertFalse(RefGenomeMicrosatellitesFinder.isValidUnit(StringUtil.stringToBytes("GGGGG")));
+        Assert.assertTrue(RefGenomeMicrosatellitesFinder.isValidUnit(StringUtil.stringToBytes("ATT")));
+        Assert.assertTrue(RefGenomeMicrosatellitesFinder.isValidUnit(StringUtil.stringToBytes("ATTAT")));
+        Assert.assertTrue(RefGenomeMicrosatellitesFinder.isValidUnit(StringUtil.stringToBytes("ATGAT")));
+        Assert.assertFalse(RefGenomeMicrosatellitesFinder.isValidUnit(StringUtil.stringToBytes("ATTATT")));
+        Assert.assertFalse(RefGenomeMicrosatellitesFinder.isValidUnit(StringUtil.stringToBytes("TTATTA")));
+        Assert.assertFalse(RefGenomeMicrosatellitesFinder.isValidUnit(StringUtil.stringToBytes("ATGATG")));
     }
 
     //@Test
