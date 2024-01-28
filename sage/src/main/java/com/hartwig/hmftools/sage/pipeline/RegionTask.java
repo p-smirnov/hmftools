@@ -97,6 +97,19 @@ public class RegionTask
         List<Candidate> initialCandidates = mCandidateState.findCandidates(mRegion, refSequence);
         mPerfCounters.get(PC_CANDIDATES).stop();
 
+//        int i = 0;
+//        while (i < initialCandidates.size())
+//        {
+//            var candidate = initialCandidates.get(i);
+//            if (candidate.chromosome().equals("chr5") && candidate.position() == 35874470 && candidate.variant().ref().equals("TA") && candidate.variant().alt().equals("CC"))
+//            {
+//                ++i;
+//                continue;
+//            }
+//
+//            initialCandidates.remove(i);
+//        }
+
         if(mConfig.Common.PerfWarnTime > 0 && mPerfCounters.get(PC_CANDIDATES).getLastTime() > mConfig.Common.PerfWarnTime)
         {
             SG_LOGGER.warn("region({}) candidate({}) reads({}) processing time({})",
