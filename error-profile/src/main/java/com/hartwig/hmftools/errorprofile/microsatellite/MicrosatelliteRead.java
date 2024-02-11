@@ -1,6 +1,6 @@
-package com.hartwig.hmftools.errorprofile.repeat;
+package com.hartwig.hmftools.errorprofile.microsatellite;
 
-import static com.hartwig.hmftools.errorprofile.repeat.RepeatProfileConstant.MIN_FLANKING_BASE_MATCHES;
+import static com.hartwig.hmftools.errorprofile.microsatellite.MicrosatelliteAnalyserConstants.MIN_FLANKING_BASE_MATCHES;
 
 import com.hartwig.hmftools.errorprofile.utils.CigarHandler;
 
@@ -16,9 +16,9 @@ import htsjdk.samtools.SAMRecord;
 // 1. check the M elements and see if they add up
 // 2. check the D elements to see if any was deleted
 // 3. we must check the I elements in case the polymer was lengthened.
-class ReadRepeatMatch implements CigarHandler
+class MicrosatelliteRead implements CigarHandler
 {
-    public static final Logger sLogger = LogManager.getLogger(ReadRepeatMatch.class);
+    public static final Logger sLogger = LogManager.getLogger(MicrosatelliteRead.class);
 
     final RefGenomeMicrosatellite refGenomeMicrosatellite;
     boolean shouldDropRead = false;
@@ -29,7 +29,7 @@ class ReadRepeatMatch implements CigarHandler
     int numMatchedBefore = 0;
     int numMatchedAfter = 0;
 
-    private ReadRepeatMatch(final RefGenomeMicrosatellite refGenomeMicrosatellite, final SAMRecord record)
+    private MicrosatelliteRead(final RefGenomeMicrosatellite refGenomeMicrosatellite, final SAMRecord record)
     {
         this.refGenomeMicrosatellite = refGenomeMicrosatellite;
 
@@ -82,9 +82,9 @@ class ReadRepeatMatch implements CigarHandler
         return readRepeatLength() / refGenomeMicrosatellite.unit.length;
     }
 
-    public static ReadRepeatMatch from(final RefGenomeMicrosatellite refGenomeMicrosatellite, final SAMRecord record)
+    public static MicrosatelliteRead from(final RefGenomeMicrosatellite refGenomeMicrosatellite, final SAMRecord record)
     {
-        return new ReadRepeatMatch(refGenomeMicrosatellite, record);
+        return new MicrosatelliteRead(refGenomeMicrosatellite, record);
     }
 
     public void handleAlignment(final SAMRecord record, final CigarElement e, final int startReadIndex, final int startRefPos)

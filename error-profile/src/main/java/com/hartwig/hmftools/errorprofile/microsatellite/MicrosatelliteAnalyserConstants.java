@@ -1,6 +1,6 @@
-package com.hartwig.hmftools.errorprofile.repeat;
+package com.hartwig.hmftools.errorprofile.microsatellite;
 
-public class RepeatProfileConstant
+public class MicrosatelliteAnalyserConstants
 {
     public static final int MIN_FLANKING_BASE_MATCHES = 5;
 

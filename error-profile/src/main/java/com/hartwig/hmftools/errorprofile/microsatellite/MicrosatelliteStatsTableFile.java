@@ -1,13 +1,11 @@
-package com.hartwig.hmftools.errorprofile.repeat;
+package com.hartwig.hmftools.errorprofile.microsatellite;
 
 import java.io.File;
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import com.hartwig.hmftools.common.utils.file.DelimFileWriter;
 
-import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 
 public class MicrosatelliteStatsTableFile

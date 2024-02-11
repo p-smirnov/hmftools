@@ -1,4 +1,4 @@
-package com.hartwig.hmftools.errorprofile.repeat;
+package com.hartwig.hmftools.errorprofile.microsatellite;
 
 import java.io.File;
 import java.io.FileNotFoundException;

@@ -1,4 +1,4 @@
-package com.hartwig.hmftools.errorprofile.repeat;
+package com.hartwig.hmftools.errorprofile.microsatellite;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,27 +17,27 @@ import it.unimi.dsi.fastutil.ints.IntBinaryOperator;
 
 // works with one repeat
 // find the number of reads of each number of repeat across the section
-public class RepeatAnalyser
+public class MicrosatelliteSiteAnalyser
 {
-    public static final Logger sLogger = LogManager.getLogger(RepeatAnalyser.class);
+    public static final Logger sLogger = LogManager.getLogger(MicrosatelliteSiteAnalyser.class);
 
     final RefGenomeMicrosatellite refGenomeMicrosatellite;
 
-    private final List<ReadRepeatMatch> mReadRepeatMatches = new ArrayList<>();
+    private final List<MicrosatelliteRead> mMicrosatelliteReads = new ArrayList<>();
 
-    public List<ReadRepeatMatch> getReadRepeatMatches() { return mReadRepeatMatches; }
+    public List<MicrosatelliteRead> getReadRepeatMatches() { return mMicrosatelliteReads; }
 
-    public List<ReadRepeatMatch> getPassingReadRepeatMatches()
+    public List<MicrosatelliteRead> getPassingReadRepeatMatches()
     {
-        return mReadRepeatMatches.stream().filter(o -> !o.shouldDropRead).collect(Collectors.toList());
+        return mMicrosatelliteReads.stream().filter(o -> !o.shouldDropRead).collect(Collectors.toList());
     }
 
     public int numReadRejected()
     {
-        return (int)mReadRepeatMatches.stream().filter(o -> o.shouldDropRead).count();
+        return (int) mMicrosatelliteReads.stream().filter(o -> o.shouldDropRead).count();
     }
 
-    public RepeatAnalyser(final RefGenomeMicrosatellite refGenomeMicrosatellite)
+    public MicrosatelliteSiteAnalyser(final RefGenomeMicrosatellite refGenomeMicrosatellite)
     {
         this.refGenomeMicrosatellite = refGenomeMicrosatellite;
     }
@@ -47,7 +47,7 @@ public class RepeatAnalyser
         if(read.getReadUnmappedFlag() || read.getDuplicateReadFlag())
             return;
 
-        mReadRepeatMatches.add(ReadRepeatMatch.from(refGenomeMicrosatellite, read));
+        mMicrosatelliteReads.add(MicrosatelliteRead.from(refGenomeMicrosatellite, read));
     }
 
     public int getCountWithRepeatUnits(int numRepeatUnits)
@@ -71,9 +71,9 @@ public class RepeatAnalyser
 
         Int2IntArrayMap repeatReadCounts = new Int2IntArrayMap();
 
-        for(ReadRepeatMatch readRepeatMatch : getPassingReadRepeatMatches())
+        for(MicrosatelliteRead microsatelliteRead : getPassingReadRepeatMatches())
         {
-            int repeatDiff = refGenomeMicrosatellite.numRepeat - readRepeatMatch.numRepeatUnits();
+            int repeatDiff = refGenomeMicrosatellite.numRepeat - microsatelliteRead.numRepeatUnits();
 
             if(repeatDiff != 0)
             {
@@ -112,11 +112,11 @@ public class RepeatAnalyser
          */
         Int2IntArrayMap repeatReadCounts = new Int2IntArrayMap();
 
-        for(ReadRepeatMatch readRepeatMatch : getPassingReadRepeatMatches())
+        for(MicrosatelliteRead microsatelliteRead : getPassingReadRepeatMatches())
         {
-            if(readRepeatMatch.numRepeatUnits() != refGenomeMicrosatellite.numRepeat)
+            if(microsatelliteRead.numRepeatUnits() != refGenomeMicrosatellite.numRepeat)
             {
-                repeatReadCounts.mergeInt(readRepeatMatch.numRepeatUnits(), 1, sumFunc);
+                repeatReadCounts.mergeInt(microsatelliteRead.numRepeatUnits(), 1, sumFunc);
             }
         }
 

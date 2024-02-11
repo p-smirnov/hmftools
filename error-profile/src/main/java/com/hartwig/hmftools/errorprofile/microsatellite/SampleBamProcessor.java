@@ -1,4 +1,4 @@
-package com.hartwig.hmftools.errorprofile.repeat;
+package com.hartwig.hmftools.errorprofile.microsatellite;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -30,18 +30,18 @@ import htsjdk.samtools.cram.ref.ReferenceSource;
 
 // For performance reasons, this class is not decoupled from the threading
 // We want to avoid locks, queues as much as possible
-public class SampleRepeatAnalyser
+public class SampleBamProcessor
 {
-    private static final Logger sLogger = LogManager.getLogger(SampleRepeatAnalyser.class);
+    private static final Logger sLogger = LogManager.getLogger(SampleBamProcessor.class);
 
     private final List<RefGenomeMicrosatellite> mRefGenomeMicrosatellites;
 
     // for speed reasons we need to consolidate the chr base regions into bigger chunks
-    private final Multimap<ChrBaseRegion, RepeatAnalyser> mRepeatAnalysers = ArrayListMultimap.create();
+    private final Multimap<ChrBaseRegion, MicrosatelliteSiteAnalyser> mRepeatAnalysers = ArrayListMultimap.create();
 
-    public Collection<RepeatAnalyser> getRepeatAnalysers() { return mRepeatAnalysers.values(); }
+    public Collection<MicrosatelliteSiteAnalyser> getRepeatAnalysers() { return mRepeatAnalysers.values(); }
 
-    public SampleRepeatAnalyser(List<RefGenomeMicrosatellite> refGenomeMicrosatellites, double samplingFraction)
+    public SampleBamProcessor(List<RefGenomeMicrosatellite> refGenomeMicrosatellites, double samplingFraction)
     {
         Random random = new Random(0);
         mRefGenomeMicrosatellites = refGenomeMicrosatellites.stream().filter(o -> random.nextDouble() <= samplingFraction).collect(Collectors.toList());
@@ -56,7 +56,7 @@ public class SampleRepeatAnalyser
 
         ImmutableListMultimap<String, RefGenomeMicrosatellite> chromosomeRepeats = Multimaps.index(mRefGenomeMicrosatellites, RefGenomeMicrosatellite::chromosome);
 
-        List<RepeatAnalyser> regionAnalysers = new ArrayList<>();
+        List<MicrosatelliteSiteAnalyser> regionAnalysers = new ArrayList<>();
 
         for(String chromosome : chromosomeRepeats.keySet())
         {
@@ -78,7 +78,7 @@ public class SampleRepeatAnalyser
                     regionAnalysers.clear();
                 }
                 currentRegion.setEnd(refGenomeMicrosatellite.genomeRegion.end());
-                regionAnalysers.add(new RepeatAnalyser(refGenomeMicrosatellite));
+                regionAnalysers.add(new MicrosatelliteSiteAnalyser(refGenomeMicrosatellite));
             }
 
             // final one
@@ -89,7 +89,7 @@ public class SampleRepeatAnalyser
         }
     }
 
-    public void queryBam(final RepeatProfileConfig config, ExecutorService executorService) throws InterruptedException
+    public void queryBam(final MicrosatelliteAnalyserConfig config, ExecutorService executorService) throws InterruptedException
     {
         SamReaderFactory readerFactory = SamReaderFactory.make().validationStringency(config.BamStringency);
         if(config.RefGenomeFile != null)
@@ -120,14 +120,14 @@ public class SampleRepeatAnalyser
             return;
         }
 
-        Collection<RepeatAnalyser> repeatAnalysers = mRepeatAnalysers.get(baseRegion);
+        Collection<MicrosatelliteSiteAnalyser> microsatelliteSiteAnalysers = mRepeatAnalysers.get(baseRegion);
 
-        Validate.isTrue(!repeatAnalysers.isEmpty());
+        Validate.isTrue(!microsatelliteSiteAnalysers.isEmpty());
 
         int readAlignmentStart = read.getAlignmentStart();
         int readAlignmentEnd = read.getAlignmentEnd();
 
-        for(RepeatAnalyser analyser : repeatAnalysers)
+        for(MicrosatelliteSiteAnalyser analyser : microsatelliteSiteAnalysers)
         {
             if(BaseRegion.positionsWithin(analyser.refGenomeMicrosatellite.referenceStart(), analyser.refGenomeMicrosatellite.referenceEnd(),
                     readAlignmentStart, readAlignmentEnd))

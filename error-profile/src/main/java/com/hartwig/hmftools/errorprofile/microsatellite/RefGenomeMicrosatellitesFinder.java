@@ -1,4 +1,4 @@
-package com.hartwig.hmftools.errorprofile.repeat;
+package com.hartwig.hmftools.errorprofile.microsatellite;
 
 import static com.hartwig.hmftools.common.genome.refgenome.RefGenomeSource.REF_GENOME;
 import static com.hartwig.hmftools.common.genome.refgenome.RefGenomeSource.REF_GENOME_CFG_DESC;
@@ -9,9 +9,9 @@ import static com.hartwig.hmftools.common.utils.config.ConfigUtils.setLogLevel;
 import static com.hartwig.hmftools.common.utils.file.FileWriterUtils.addOutputDir;
 import static com.hartwig.hmftools.common.utils.file.FileWriterUtils.checkCreateOutputDir;
 import static com.hartwig.hmftools.common.utils.file.FileWriterUtils.parseOutputDir;
-import static com.hartwig.hmftools.errorprofile.repeat.RepeatProfileConstant.MAX_MICROSAT_UNIT_LENGTH;
-import static com.hartwig.hmftools.errorprofile.repeat.RepeatProfileConstant.MIN_ADJACENT_MICROSAT_DISTANCE;
-import static com.hartwig.hmftools.errorprofile.repeat.RepeatProfileConstant.MIN_MICROSAT_UNIT_COUNT;
+import static com.hartwig.hmftools.errorprofile.microsatellite.MicrosatelliteAnalyserConstants.MAX_MICROSAT_UNIT_LENGTH;
+import static com.hartwig.hmftools.errorprofile.microsatellite.MicrosatelliteAnalyserConstants.MIN_ADJACENT_MICROSAT_DISTANCE;
+import static com.hartwig.hmftools.errorprofile.microsatellite.MicrosatelliteAnalyserConstants.MIN_MICROSAT_UNIT_COUNT;
 
 import static htsjdk.samtools.util.SequenceUtil.N;
 

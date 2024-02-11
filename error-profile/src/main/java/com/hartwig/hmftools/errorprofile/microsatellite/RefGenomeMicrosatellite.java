@@ -1,4 +1,4 @@
-package com.hartwig.hmftools.errorprofile.repeat;
+package com.hartwig.hmftools.errorprofile.microsatellite;
 
 import com.hartwig.hmftools.common.region.ChrBaseRegion;
 

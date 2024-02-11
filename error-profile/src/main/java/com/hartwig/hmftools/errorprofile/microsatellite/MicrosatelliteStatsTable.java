@@ -1,4 +1,4 @@
-package com.hartwig.hmftools.errorprofile.repeat;
+package com.hartwig.hmftools.errorprofile.microsatellite;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -46,21 +46,21 @@ public class MicrosatelliteStatsTable
         this.repeatUnit = repeatUnit;
     }
 
-    void summarise(@NotNull final Collection<RepeatAnalyser> repeatAnalysers)
+    void summarise(@NotNull final Collection<MicrosatelliteSiteAnalyser> microsatelliteSiteAnalysers)
     {
-        for(RepeatAnalyser repeatAnalyser : repeatAnalysers)
+        for(MicrosatelliteSiteAnalyser microsatelliteSiteAnalyser : microsatelliteSiteAnalysers)
         {
-            if(repeatAnalyser.isRealVariant(RepeatProfileConstant.ALT_COUNT_FRACTION_INIT, RepeatProfileConstant.ALT_COUNT_FRACTION_STEP,
-                    RepeatProfileConstant.MAX_REJECTED_READ_FRACTION))
+            if(microsatelliteSiteAnalyser.isRealVariant(MicrosatelliteAnalyserConstants.ALT_COUNT_FRACTION_INIT, MicrosatelliteAnalyserConstants.ALT_COUNT_FRACTION_STEP,
+                    MicrosatelliteAnalyserConstants.MAX_REJECTED_READ_FRACTION))
             {
                 continue;
             }
 
             // add all the counts
-            for(ReadRepeatMatch readRepeatMatch : repeatAnalyser.getPassingReadRepeatMatches())
+            for(MicrosatelliteRead microsatelliteRead : microsatelliteSiteAnalyser.getPassingReadRepeatMatches())
             {
-                int refNumUnits = repeatAnalyser.refGenomeMicrosatellite.numRepeat;
-                int numRepeatUnits = readRepeatMatch.numRepeatUnits();
+                int refNumUnits = microsatelliteSiteAnalyser.refGenomeMicrosatellite.numRepeat;
+                int numRepeatUnits = microsatelliteRead.numRepeatUnits();
                 int repeatDiff = numRepeatUnits - refNumUnits;
                 rows.computeIfAbsent(refNumUnits, k -> new Row(refNumUnits)).addRead(repeatDiff);
             }

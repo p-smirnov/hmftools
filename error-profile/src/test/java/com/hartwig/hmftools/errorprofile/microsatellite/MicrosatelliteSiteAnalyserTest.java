@@ -1,8 +1,6 @@
-package com.hartwig.hmftools.errorprofile.repeat;
+package com.hartwig.hmftools.errorprofile.microsatellite;
 
 import static htsjdk.samtools.util.SequenceUtil.A;
-
-import java.util.Arrays;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -11,7 +9,7 @@ import htsjdk.samtools.SAMFlag;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordSetBuilder;
 
-public class RepeatAnalyserTest
+public class MicrosatelliteSiteAnalyserTest
 {
     @Test
     public void testHandleCigarMatch()
@@ -24,7 +22,7 @@ public class RepeatAnalyserTest
         // test a record that matches the whole repeat
         SAMRecord record = createSamRecord(chromosome, 91, "151M", true, false);
 
-        ReadRepeatMatch cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
+        MicrosatelliteRead cigarHandler = MicrosatelliteRead.from(refGenomeMicrosatellite, record);
 
         Assert.assertEquals(10, cigarHandler.numAligned);
         Assert.assertEquals(0, cigarHandler.numDeleted);
@@ -34,7 +32,7 @@ public class RepeatAnalyserTest
 
         // test such that it barely matches the range
         record = createSamRecord(chromosome, 101, "10M", true, false);
-        cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
+        cigarHandler = MicrosatelliteRead.from(refGenomeMicrosatellite, record);
 
         Assert.assertEquals(10, cigarHandler.numAligned);
         Assert.assertEquals(0, cigarHandler.numDeleted);
@@ -72,7 +70,7 @@ public class RepeatAnalyserTest
         SAMRecord record = createSamRecord(chromosome, 91, "10M2I20M", true, false);
         record.setReadString("TTTTTTTTTTAAAAAAAAAAAAGGGGGGGGGG");
 
-        ReadRepeatMatch cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
+        MicrosatelliteRead cigarHandler = MicrosatelliteRead.from(refGenomeMicrosatellite, record);
 
         Assert.assertFalse(cigarHandler.shouldDropRead);
         Assert.assertEquals(10, cigarHandler.numAligned);
@@ -83,7 +81,7 @@ public class RepeatAnalyserTest
         record = createSamRecord(chromosome, 91, "20M2I10M", true, false);
         record.setReadString("TTTTTTTTTTAAAAAAAAAAAAGGGGGGGGGG");
 
-        cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
+        cigarHandler = MicrosatelliteRead.from(refGenomeMicrosatellite, record);
 
         Assert.assertFalse(cigarHandler.shouldDropRead);
         Assert.assertEquals(10, cigarHandler.numAligned);
@@ -94,7 +92,7 @@ public class RepeatAnalyserTest
         record = createSamRecord(chromosome, 91, "15M2I15M", true, false);
         record.setReadString("TTTTTTTTTTAAAAAAAAAAAAGGGGGGGGGG");
 
-        cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
+        cigarHandler = MicrosatelliteRead.from(refGenomeMicrosatellite, record);
 
         Assert.assertFalse(cigarHandler.shouldDropRead);
         Assert.assertEquals(10, cigarHandler.numAligned);
@@ -103,7 +101,7 @@ public class RepeatAnalyserTest
 
         record = createSamRecord(chromosome, 92, "10M2I20M", true, false);
         record.setReadString("TTTTTTTTTTAAAAAAAAAAAAGGGGGGGGGG");
-        cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
+        cigarHandler = MicrosatelliteRead.from(refGenomeMicrosatellite, record);
 
         Assert.assertFalse(cigarHandler.shouldDropRead);
         Assert.assertEquals(10, cigarHandler.numAligned);
@@ -122,19 +120,19 @@ public class RepeatAnalyserTest
         // test 2 base delete right before the repeat bases, this should not count as delete of the polymer, but should disqualify the read
         SAMRecord record = createSamRecord(chromosome, 91, "8M2D20M", true, false);
 
-        ReadRepeatMatch cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
+        MicrosatelliteRead cigarHandler = MicrosatelliteRead.from(refGenomeMicrosatellite, record);
 
         Assert.assertTrue(cigarHandler.shouldDropRead);
 
         // test 2 base delete right after the repeat bases, this should also disqualify the read
         record = createSamRecord(chromosome, 91, "20M2D20M", true, false);
-        cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
+        cigarHandler = MicrosatelliteRead.from(refGenomeMicrosatellite, record);
 
         Assert.assertTrue(cigarHandler.shouldDropRead);
 
         // test 2 base delete in the middle
         record = createSamRecord(chromosome, 91, "15M2D20M", true, false);
-        cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
+        cigarHandler = MicrosatelliteRead.from(refGenomeMicrosatellite, record);
 
         Assert.assertFalse(cigarHandler.shouldDropRead);
         Assert.assertEquals(8, cigarHandler.numAligned);
@@ -143,7 +141,7 @@ public class RepeatAnalyserTest
 
         // test 2 base delete at the start of the polymer
         record = createSamRecord(chromosome, 91, "10M2D20M", true, false);
-        cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
+        cigarHandler = MicrosatelliteRead.from(refGenomeMicrosatellite, record);
 
         Assert.assertFalse(cigarHandler.shouldDropRead);
         Assert.assertEquals(8, cigarHandler.numAligned);
@@ -152,7 +150,7 @@ public class RepeatAnalyserTest
 
         // test 2 base delete at the end of the polymer
         record = createSamRecord(chromosome, 91, "18M2D20M", true, false);
-        cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
+        cigarHandler = MicrosatelliteRead.from(refGenomeMicrosatellite, record);
 
         Assert.assertFalse(cigarHandler.shouldDropRead);
         Assert.assertEquals(8, cigarHandler.numAligned);
@@ -161,19 +159,19 @@ public class RepeatAnalyserTest
 
         // test 2 base delete straddling the boundary, should be dropped
         record = createSamRecord(chromosome, 91, "9M2D20M", true, false);
-        cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
+        cigarHandler = MicrosatelliteRead.from(refGenomeMicrosatellite, record);
 
         Assert.assertTrue(cigarHandler.shouldDropRead);
 
         // test 2 base delete straddling the boundary, should be dropped
         record = createSamRecord(chromosome, 91, "19M2D20M", true, false);
-        cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
+        cigarHandler = MicrosatelliteRead.from(refGenomeMicrosatellite, record);
 
         Assert.assertTrue(cigarHandler.shouldDropRead);
 
         // test 13 base delete straddling the boundary, should be dropped
         record = createSamRecord(chromosome, 91, "9M13D20M", true, false);
-        cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
+        cigarHandler = MicrosatelliteRead.from(refGenomeMicrosatellite, record);
 
         Assert.assertTrue(cigarHandler.shouldDropRead);
     }
@@ -190,7 +188,7 @@ public class RepeatAnalyserTest
         // test a record that matches the whole repeat
         SAMRecord record = createSamRecord(chromosome, 97, "151M", true, false);
 
-        ReadRepeatMatch cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
+        MicrosatelliteRead cigarHandler = MicrosatelliteRead.from(refGenomeMicrosatellite, record);
 
         Assert.assertTrue(cigarHandler.shouldDropRead);
         Assert.assertEquals(4, cigarHandler.numMatchedBefore);
@@ -201,7 +199,7 @@ public class RepeatAnalyserTest
 
         // test such that it barely matches the range
         record = createSamRecord(chromosome, 91, "24M", true, false);
-        cigarHandler = ReadRepeatMatch.from(refGenomeMicrosatellite, record);
+        cigarHandler = MicrosatelliteRead.from(refGenomeMicrosatellite, record);
 
         Assert.assertTrue(cigarHandler.shouldDropRead);
         Assert.assertEquals(5, cigarHandler.numMatchedBefore);

@@ -1,4 +1,4 @@
-package com.hartwig.hmftools.errorprofile.repeat;
+package com.hartwig.hmftools.errorprofile.microsatellite;
 
 import static java.time.format.DateTimeFormatter.ISO_ZONED_DATE_TIME;
 
@@ -29,15 +29,15 @@ import org.jetbrains.annotations.NotNull;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.cram.ref.ReferenceSource;
 
-public class RepeatProfileApplication
+public class MicrosatelliteAnalyserApp
 {
-    public static final Logger sLogger = LogManager.getLogger(RepeatProfileApplication.class);
+    public static final Logger sLogger = LogManager.getLogger(MicrosatelliteAnalyserApp.class);
 
-    private final RepeatProfileConfig mConfig;
+    private final MicrosatelliteAnalyserConfig mConfig;
 
-    public RepeatProfileApplication(final ConfigBuilder configBuilder) throws ParseException
+    public MicrosatelliteAnalyserApp(final ConfigBuilder configBuilder) throws ParseException
     {
-        mConfig = new RepeatProfileConfig(configBuilder);
+        mConfig = new MicrosatelliteAnalyserConfig(configBuilder);
     }
 
     public int run(final String... args) throws InterruptedException, FileNotFoundException
@@ -63,18 +63,18 @@ public class RepeatProfileApplication
 
         filterSpecificRegions(refGenomeMicrosatellites);
 
-        SampleRepeatAnalyser sampleRepeatAnalyser = new SampleRepeatAnalyser(refGenomeMicrosatellites, mConfig.SamplingFraction);
+        SampleBamProcessor sampleBamProcessor = new SampleBamProcessor(refGenomeMicrosatellites, mConfig.SamplingFraction);
 
         final ThreadFactory namedThreadFactory = new ThreadFactoryBuilder().setNameFormat("worker-%d").build();
         ExecutorService executorService = Executors.newFixedThreadPool(mConfig.Threads, namedThreadFactory);
 
-        sampleRepeatAnalyser.queryBam(mConfig, executorService);
+        sampleBamProcessor.queryBam(mConfig, executorService);
 
         // now write out all the repeat stats
-        RepeatProfileFile.write(RepeatProfileFile.generateFilename(mConfig.OutputDir, mConfig.SampleId),
-                sampleRepeatAnalyser.getRepeatAnalysers());
+        MicrosatelliteSiteFile.write(MicrosatelliteSiteFile.generateFilename(mConfig.OutputDir, mConfig.SampleId),
+                sampleBamProcessor.getRepeatAnalysers());
 
-        writeMicrosatelliteStatsTable(sampleRepeatAnalyser.getRepeatAnalysers());
+        writeMicrosatelliteStatsTable(sampleBamProcessor.getRepeatAnalysers());
 
         // draw a chart of the 9 ms profiles
 
@@ -86,7 +86,7 @@ public class RepeatProfileApplication
         return 0;
     }
 
-    private void writeMicrosatelliteStatsTable(@NotNull final Collection<RepeatAnalyser> repeatAnalysers)
+    private void writeMicrosatelliteStatsTable(@NotNull final Collection<MicrosatelliteSiteAnalyser> microsatelliteSiteAnalysers)
     {
         // write two tables, one with real variant filter, one without
 
@@ -95,7 +95,7 @@ public class RepeatProfileApplication
         for(MicrosatelliteSelector s : createMicrosatelliteSelectors())
         {
             MicrosatelliteStatsTable msStatsTable = new MicrosatelliteStatsTable(s.unitName());
-            msStatsTable.summarise(repeatAnalysers.stream().filter(s::select).collect(Collectors.toList()));
+            msStatsTable.summarise(microsatelliteSiteAnalysers.stream().filter(s::select).collect(Collectors.toList()));
             msStatsTables.add(msStatsTable);
         }
 
@@ -149,7 +149,7 @@ public class RepeatProfileApplication
     public static void main(final String... args) throws InterruptedException, FileNotFoundException, ParseException
     {
         ConfigBuilder configBuilder = new ConfigBuilder("ErrorProfile");
-        RepeatProfileConfig.registerConfig(configBuilder);
+        MicrosatelliteAnalyserConfig.registerConfig(configBuilder);
 
         configBuilder.checkAndParseCommandLine(args);
 
@@ -165,6 +165,6 @@ public class RepeatProfileApplication
             System.exit(1);
         });
 
-        System.exit(new RepeatProfileApplication(configBuilder).run(args));
+        System.exit(new MicrosatelliteAnalyserApp(configBuilder).run(args));
     }
 }

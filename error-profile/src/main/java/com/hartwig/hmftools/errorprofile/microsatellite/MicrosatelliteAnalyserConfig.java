@@ -1,4 +1,4 @@
-package com.hartwig.hmftools.errorprofile.repeat;
+package com.hartwig.hmftools.errorprofile.microsatellite;
 
 import static com.hartwig.hmftools.common.genome.refgenome.RefGenomeSource.REF_GENOME;
 import static com.hartwig.hmftools.common.genome.refgenome.RefGenomeSource.REF_GENOME_CFG_DESC;
@@ -25,7 +25,7 @@ import org.apache.commons.cli.ParseException;
 
 import htsjdk.samtools.ValidationStringency;
 
-public class RepeatProfileConfig
+public class MicrosatelliteAnalyserConfig
 {
     public final String SampleId;
     public final String BamPath;
@@ -48,7 +48,7 @@ public class RepeatProfileConfig
     private static final String SAMPLING_FRAC = "sampling_frac";
     public static final int DEFAULT_MIN_MAPPING_QUALITY = 50;
 
-    public RepeatProfileConfig(final ConfigBuilder configBuilder) throws ParseException
+    public MicrosatelliteAnalyserConfig(final ConfigBuilder configBuilder) throws ParseException
     {
         SampleId = configBuilder.getValue(SAMPLE);
         BamPath = configBuilder.getValue("bam");

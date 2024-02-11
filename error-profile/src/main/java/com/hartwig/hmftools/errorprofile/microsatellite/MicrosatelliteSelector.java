@@ -1,4 +1,4 @@
-package com.hartwig.hmftools.errorprofile.repeat;
+package com.hartwig.hmftools.errorprofile.microsatellite;
 
 import java.util.List;
 
@@ -13,15 +13,15 @@ public class MicrosatelliteSelector
         this.unitLength = unitLength;
     }
 
-    public boolean select(RepeatAnalyser repeatAnalyser)
+    public boolean select(MicrosatelliteSiteAnalyser microsatelliteSiteAnalyser)
     {
         if(units != null)
         {
-            return units.contains(repeatAnalyser.refGenomeMicrosatellite.unitString());
+            return units.contains(microsatelliteSiteAnalyser.refGenomeMicrosatellite.unitString());
         }
         else if(unitLength != null)
         {
-            return repeatAnalyser.refGenomeMicrosatellite.unit.length == unitLength;
+            return microsatelliteSiteAnalyser.refGenomeMicrosatellite.unit.length == unitLength;
         }
         return false;
     }

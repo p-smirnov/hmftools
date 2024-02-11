@@ -1,4 +1,4 @@
-package com.hartwig.hmftools.errorprofile.repeat;
+package com.hartwig.hmftools.errorprofile.microsatellite;
 
 import java.io.File;
 import java.util.Collection;
@@ -11,7 +11,7 @@ import com.hartwig.hmftools.common.utils.file.DelimFileWriter;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 
-public class RepeatProfileFile
+public class MicrosatelliteSiteFile
 {
     private static String CHROMOSOME = "chromosome";
     private static String START = "start";
@@ -54,15 +54,15 @@ public class RepeatProfileFile
         return basePath + File.separator + sample + FILE_EXTENSION;
     }
 
-    public static void write(final String filename, @NotNull final Collection<RepeatAnalyser> repeatAnalysers)
+    public static void write(final String filename, @NotNull final Collection<MicrosatelliteSiteAnalyser> microsatelliteSiteAnalysers)
     {
-        Comparator<RepeatAnalyser> comparator =
-                Comparator.comparing((RepeatAnalyser o) -> o.refGenomeMicrosatellite.chromosome())
+        Comparator<MicrosatelliteSiteAnalyser> comparator =
+                Comparator.comparing((MicrosatelliteSiteAnalyser o) -> o.refGenomeMicrosatellite.chromosome())
                         .thenComparingInt(o -> o.refGenomeMicrosatellite.referenceStart())
                         .thenComparing(o -> o.refGenomeMicrosatellite.referenceEnd());
 
         // sort the bins
-        List<RepeatAnalyser> sortedAnalysers = repeatAnalysers.stream().sorted(comparator).collect(Collectors.toList());
+        List<MicrosatelliteSiteAnalyser> sortedAnalysers = microsatelliteSiteAnalysers.stream().sorted(comparator).collect(Collectors.toList());
 
         List<String> columns = List.of(CHROMOSOME, START, END, UNIT, NUM_READS, NUM_READS_REJECTED, REAL_VARIANT,
                 COUNT_m10, COUNT_m9, COUNT_m8, COUNT_m7, COUNT_m6, COUNT_m5, COUNT_m4, COUNT_m3, COUNT_m2, COUNT_m1,
@@ -79,8 +79,8 @@ public class RepeatProfileFile
             row.set(UNIT,  repeatAnalyser.refGenomeMicrosatellite.unitString());
             row.set(NUM_READS, repeatAnalyser.getReadRepeatMatches().size());
             row.set(NUM_READS_REJECTED, repeatAnalyser.getReadRepeatMatches().stream().filter(o -> o.shouldDropRead).count());
-            row.set(REAL_VARIANT, repeatAnalyser.isRealVariant(RepeatProfileConstant.ALT_COUNT_FRACTION_INIT, RepeatProfileConstant.ALT_COUNT_FRACTION_STEP,
-                    RepeatProfileConstant.MAX_REJECTED_READ_FRACTION));
+            row.set(REAL_VARIANT, repeatAnalyser.isRealVariant(MicrosatelliteAnalyserConstants.ALT_COUNT_FRACTION_INIT, MicrosatelliteAnalyserConstants.ALT_COUNT_FRACTION_STEP,
+                    MicrosatelliteAnalyserConstants.MAX_REJECTED_READ_FRACTION));
             int refNumRepeat = repeatAnalyser.refGenomeMicrosatellite.numRepeat;
             row.set(COUNT_p0, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat));
 
@@ -110,9 +110,9 @@ public class RepeatProfileFile
         });
     }
 
-    public static String getRepeatString(final List<ReadRepeatMatch> readRepeatMatches)
+    public static String getRepeatString(final List<MicrosatelliteRead> microsatelliteReads)
     {
-        List<Integer> repeatLengths = readRepeatMatches.stream().filter(o -> !o.shouldDropRead).map(ReadRepeatMatch::readRepeatLength).collect(
+        List<Integer> repeatLengths = microsatelliteReads.stream().filter(o -> !o.shouldDropRead).map(MicrosatelliteRead::readRepeatLength).collect(
                 Collectors.toList());
         return StringUtils.join(repeatLengths, ",");
     }
