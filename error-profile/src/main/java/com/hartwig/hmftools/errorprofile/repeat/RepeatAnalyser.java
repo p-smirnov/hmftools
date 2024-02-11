@@ -4,10 +4,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.hartwig.hmftools.common.utils.Doubles;
+
+import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import htsjdk.samtools.SAMRecord;
+import it.unimi.dsi.fastutil.ints.Int2IntArrayMap;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.IntBinaryOperator;
 
 // works with one repeat
 // find the number of reads of each number of repeat across the section
@@ -42,6 +48,80 @@ public class RepeatAnalyser
             return;
 
         mReadRepeatMatches.add(ReadRepeatMatch.from(refGenomeMicrosatellite, read));
+    }
+
+    public int getCountWithRepeatUnits(int numRepeatUnits)
+    {
+        return (int)getPassingReadRepeatMatches().stream().filter(o -> o.numRepeatUnits() == numRepeatUnits).count();
+    }
+
+    public boolean isRealVariant(final double altCountFractionInit,
+            final double altCountFractionCutoffStep,
+            final double rejectedReadFractionCutoff)
+    {
+        // debug: use old logic
+        IntBinaryOperator sumFunc = Integer::sum;
+
+        /*
+        # filter out cases of real variants, this is defined by more than 30% of the reads are in other counts
+        filter_df = df[[ x for x in df.columns if x.startswith("count")]]
+        filter_df = filter_df.divide(filter_df.sum(axis=1), axis="index")
+        filter_df = filter_df.drop(columns="count+0") > 0.3
+        df["realVariant"] = filter_df.any(axis=1)
+         */
+        Int2IntArrayMap repeatReadCounts = new Int2IntArrayMap();
+
+        for(ReadRepeatMatch readRepeatMatch : getPassingReadRepeatMatches())
+        {
+            if(readRepeatMatch.numRepeatUnits() != refGenomeMicrosatellite.numRepeat)
+            {
+                repeatReadCounts.mergeInt(readRepeatMatch.numRepeatUnits(), 1, sumFunc);
+            }
+        }
+
+        double cutoff = getPassingReadRepeatMatches().size() * 0.3;
+
+        return repeatReadCounts.values().stream().anyMatch(i -> i > cutoff);
+
+
+        // new logic below
+        /*
+
+        Validate.isTrue(altCountFractionCutoffStep <= 0.0);
+
+        double fractionRejected = 1.0 - getPassingReadRepeatMatches().size() / (double)getReadRepeatMatches().size();
+
+        if(Doubles.greaterOrEqual(fractionRejected, rejectedReadFractionCutoff))
+        {
+            return true;
+        }
+
+        Int2IntArrayMap repeatReadCounts = new Int2IntArrayMap();
+
+        for(ReadRepeatMatch readRepeatMatch : getPassingReadRepeatMatches())
+        {
+            int repeatDiff = refGenomeMicrosatellite.numRepeat - readRepeatMatch.numRepeatUnits();
+
+            if(repeatDiff != 0)
+            {
+                repeatReadCounts.mergeInt(repeatDiff, 1, Integer::sum);
+            }
+        }
+
+        for(Int2IntMap.Entry entry : repeatReadCounts.int2IntEntrySet())
+        {
+            int repeatDiff = entry.getIntKey();
+            int readCount = entry.getIntValue();
+
+            double countCutoff = (altCountFractionInit + (Math.abs(repeatDiff) - 1) * altCountFractionCutoffStep) * getPassingReadRepeatMatches().size();
+            if(Doubles.greaterThan(readCount, countCutoff))
+            {
+                return true;
+            }
+        }
+
+        return false;
+         */
     }
 
     /*

@@ -1,7 +1,6 @@
 package com.hartwig.hmftools.errorprofile.repeat;
 
 import java.io.File;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -20,6 +19,14 @@ public class RepeatProfileFile
     private static String UNIT = "unit";
     private static String NUM_READS = "numReads";
     private static String NUM_READS_REJECTED = "numReadsRejected";
+
+    private static String REAL_VARIANT = "realVariant";
+
+    private static String COUNT_p10 = "count+10";
+    private static String COUNT_p9 = "count+9";
+    private static String COUNT_p8 = "count+8";
+    private static String COUNT_p7 = "count+7";
+    private static String COUNT_p6 = "count+6";
     private static String COUNT_p5 = "count+5";
     private static String COUNT_p4 = "count+4";
     private static String COUNT_p3 = "count+3";
@@ -27,6 +34,11 @@ public class RepeatProfileFile
     private static String COUNT_p1 = "count+1";
     private static String COUNT_p0 = "count+0";
 
+    private static String COUNT_m10 = "count-10";
+    private static String COUNT_m9 = "count-9";
+    private static String COUNT_m8 = "count-8";
+    private static String COUNT_m7 = "count-7";
+    private static String COUNT_m6 = "count-6";
     private static String COUNT_m5 = "count-5";
     private static String COUNT_m4 = "count-4";
     private static String COUNT_m3 = "count-3";
@@ -52,8 +64,9 @@ public class RepeatProfileFile
         // sort the bins
         List<RepeatAnalyser> sortedAnalysers = repeatAnalysers.stream().sorted(comparator).collect(Collectors.toList());
 
-        List<String> columns = List.of(CHROMOSOME, START, END, UNIT, NUM_READS, NUM_READS_REJECTED,
-                COUNT_m5, COUNT_m4, COUNT_m3, COUNT_m2, COUNT_m1, COUNT_p0, COUNT_p1, COUNT_p2, COUNT_p3, COUNT_p4, COUNT_p5,
+        List<String> columns = List.of(CHROMOSOME, START, END, UNIT, NUM_READS, NUM_READS_REJECTED, REAL_VARIANT,
+                COUNT_m10, COUNT_m9, COUNT_m8, COUNT_m7, COUNT_m6, COUNT_m5, COUNT_m4, COUNT_m3, COUNT_m2, COUNT_m1,
+                COUNT_p0, COUNT_p1, COUNT_p2, COUNT_p3, COUNT_p4, COUNT_p5, COUNT_p6, COUNT_p7, COUNT_p8, COUNT_p9, COUNT_p10,
                 READ_REPEAT_LENGTHS);
 
         // add the count columns
@@ -66,19 +79,32 @@ public class RepeatProfileFile
             row.set(UNIT,  repeatAnalyser.refGenomeMicrosatellite.unitString());
             row.set(NUM_READS, repeatAnalyser.getReadRepeatMatches().size());
             row.set(NUM_READS_REJECTED, repeatAnalyser.getReadRepeatMatches().stream().filter(o -> o.shouldDropRead).count());
+            row.set(REAL_VARIANT, repeatAnalyser.isRealVariant(RepeatProfileConstant.ALT_COUNT_FRACTION_INIT, RepeatProfileConstant.ALT_COUNT_FRACTION_STEP,
+                    RepeatProfileConstant.MAX_REJECTED_READ_FRACTION));
             int refNumRepeat = repeatAnalyser.refGenomeMicrosatellite.numRepeat;
-            row.set(COUNT_p0, getCountWithRepeatUnits(repeatAnalyser, refNumRepeat));
-            row.set(COUNT_p5, getCountWithRepeatUnits(repeatAnalyser, refNumRepeat + 5));
-            row.set(COUNT_p4, getCountWithRepeatUnits(repeatAnalyser, refNumRepeat + 4));
-            row.set(COUNT_p3, getCountWithRepeatUnits(repeatAnalyser, refNumRepeat + 3));
-            row.set(COUNT_p2, getCountWithRepeatUnits(repeatAnalyser, refNumRepeat + 2));
-            row.set(COUNT_p1, getCountWithRepeatUnits(repeatAnalyser, refNumRepeat + 1));
+            row.set(COUNT_p0, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat));
 
-            row.set(COUNT_m5, getCountWithRepeatUnits(repeatAnalyser, refNumRepeat - 5));
-            row.set(COUNT_m4, getCountWithRepeatUnits(repeatAnalyser, refNumRepeat - 4));
-            row.set(COUNT_m3, getCountWithRepeatUnits(repeatAnalyser, refNumRepeat - 3));
-            row.set(COUNT_m2, getCountWithRepeatUnits(repeatAnalyser, refNumRepeat - 2));
-            row.set(COUNT_m1, getCountWithRepeatUnits(repeatAnalyser, refNumRepeat - 1));
+            row.set(COUNT_p10, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat + 10));
+            row.set(COUNT_p9, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat + 9));
+            row.set(COUNT_p8, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat + 8));
+            row.set(COUNT_p7, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat + 7));
+            row.set(COUNT_p6, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat + 6));
+            row.set(COUNT_p5, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat + 5));
+            row.set(COUNT_p4, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat + 4));
+            row.set(COUNT_p3, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat + 3));
+            row.set(COUNT_p2, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat + 2));
+            row.set(COUNT_p1, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat + 1));
+
+            row.set(COUNT_m10, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat - 10));
+            row.set(COUNT_m9, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat - 9));
+            row.set(COUNT_m8, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat - 8));
+            row.set(COUNT_m7, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat - 7));
+            row.set(COUNT_m6, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat - 6));
+            row.set(COUNT_m5, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat - 5));
+            row.set(COUNT_m4, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat - 4));
+            row.set(COUNT_m3, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat - 3));
+            row.set(COUNT_m2, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat - 2));
+            row.set(COUNT_m1, repeatAnalyser.getCountWithRepeatUnits(refNumRepeat - 1));
 
             row.set(READ_REPEAT_LENGTHS, getRepeatString(repeatAnalyser.getPassingReadRepeatMatches()));
         });
@@ -89,10 +115,5 @@ public class RepeatProfileFile
         List<Integer> repeatLengths = readRepeatMatches.stream().filter(o -> !o.shouldDropRead).map(ReadRepeatMatch::readRepeatLength).collect(
                 Collectors.toList());
         return StringUtils.join(repeatLengths, ",");
-    }
-
-    public static int getCountWithRepeatUnits(RepeatAnalyser repeatAnalyser, int numRepeatUnits)
-    {
-        return (int)repeatAnalyser.getPassingReadRepeatMatches().stream().filter(o -> o.numRepeatUnits() == numRepeatUnits).count();
     }
 }

@@ -8,4 +8,10 @@ public class RepeatProfileConstant
     public static final int MIN_MICROSAT_UNIT_COUNT = 4;
 
     public static final int MIN_ADJACENT_MICROSAT_DISTANCE = 3;
+
+    public static final double ALT_COUNT_FRACTION_INIT = 0.3;
+
+    public static final double ALT_COUNT_FRACTION_STEP = -0.05;
+
+    public static final double MAX_REJECTED_READ_FRACTION = 0.2;
 }
