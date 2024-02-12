@@ -6,6 +6,7 @@ import static com.hartwig.hmftools.common.utils.config.ConfigUtils.setLogLevel;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -18,6 +19,8 @@ import java.util.stream.Collectors;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.hartwig.hmftools.common.utils.config.ConfigBuilder;
+import com.hartwig.hmftools.common.utils.pcf.PCFFile;
+import com.hartwig.hmftools.common.utils.r.RExecutor;
 import com.hartwig.hmftools.common.utils.version.VersionInfo;
 import com.hartwig.hmftools.errorprofile.ErrorProfileConfig;
 
@@ -40,7 +43,7 @@ public class MicrosatelliteAnalyserApp
         mConfig = new MicrosatelliteAnalyserConfig(configBuilder);
     }
 
-    public int run(final String... args) throws InterruptedException, FileNotFoundException
+    public int run(final String... args) throws InterruptedException, IOException
     {
         Instant start = Instant.now();
 
@@ -74,10 +77,11 @@ public class MicrosatelliteAnalyserApp
         MicrosatelliteSiteFile.write(MicrosatelliteSiteFile.generateFilename(mConfig.OutputDir, mConfig.SampleId),
                 sampleBamProcessor.getRepeatAnalysers());
 
-        writeMicrosatelliteStatsTable(sampleBamProcessor.getRepeatAnalysers());
+        final String statsTableFile = MicrosatelliteStatsTableFile.generateFilename(mConfig.OutputDir, mConfig.SampleId);
+        writeMicrosatelliteStatsTable(sampleBamProcessor.getRepeatAnalysers(), statsTableFile);
 
         // draw a chart of the 9 ms profiles
-
+        drawMicrosatelliteCharts(mConfig.OutputDir, mConfig.SampleId, statsTableFile);
 
         Instant finish = Instant.now();
         long seconds = Duration.between(start, finish).getSeconds();
@@ -86,7 +90,8 @@ public class MicrosatelliteAnalyserApp
         return 0;
     }
 
-    private void writeMicrosatelliteStatsTable(@NotNull final Collection<MicrosatelliteSiteAnalyser> microsatelliteSiteAnalysers)
+    private void writeMicrosatelliteStatsTable(@NotNull final Collection<MicrosatelliteSiteAnalyser> microsatelliteSiteAnalysers,
+            final String filename)
     {
         // write two tables, one with real variant filter, one without
 
@@ -99,8 +104,7 @@ public class MicrosatelliteAnalyserApp
             msStatsTables.add(msStatsTable);
         }
 
-        MicrosatelliteStatsTableFile.write(MicrosatelliteStatsTableFile.generateFilename(mConfig.OutputDir, mConfig.SampleId),
-                msStatsTables);
+        MicrosatelliteStatsTableFile.write(filename, msStatsTables);
     }
 
     private static List<MicrosatelliteSelector> createMicrosatelliteSelectors()
@@ -146,7 +150,17 @@ public class MicrosatelliteAnalyserApp
         return readerFactory;
     }
 
-    public static void main(final String... args) throws InterruptedException, FileNotFoundException, ParseException
+    private static void drawMicrosatelliteCharts(final String outputDir, final String sampleId, final String statsTableFile)
+            throws IOException, InterruptedException
+    {
+        int result = RExecutor.executeFromClasspath("r/ms_plot.R", outputDir, sampleId, statsTableFile);
+        if(result != 0)
+        {
+            throw new IOException("R execution failed. Unable to complete segmentation.");
+        }
+    }
+
+    public static void main(final String... args) throws InterruptedException, IOException, ParseException
     {
         ConfigBuilder configBuilder = new ConfigBuilder("ErrorProfile");
         MicrosatelliteAnalyserConfig.registerConfig(configBuilder);

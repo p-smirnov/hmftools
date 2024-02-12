@@ -6,25 +6,25 @@ library(ggplot2)
 args <- commandArgs(trailingOnly = TRUE)
 print(args)
 
-if (length(args) < 2)
+if (length(args) < 3)
 {
-  print("Requires arguments 1=SampleId, 2=Directory")
+  print("Requires arguments 1=Directory, 2=SampleId, 3=MsStatsTableFile")
   stop()
 }
 
-sampleId <- args[1]
-outDir <- args[2]
+outDir <- args[1]
+sampleId <- args[2]
+msStatsTableFile <- args[3]
 
-cupDataFile <- paste0(outDir, sampleId, '.cup.data.csv')
-
-if (!file.exists(cupDataFile))
+if (!file.exists(msStatsTableFile))
 {
-  print(sprintf('Missing CUP sample data file: %s', cupDataFile))
+  print(sprintf('Missing microsatellite stats sample data file: %s', msStatsTableFile))
   stop()
 }
 
-df <- read.table("~/hartwig/repeat_profiles/ACTN01020270R.ms_table.tsv.gz", header = TRUE, sep = "\t",
-                    check.names = FALSE)
+#"~/hartwig/repeat_profiles/ACTN01020270R.ms_table.tsv.gz"
+df <- read.table(msStatsTableFile, header = TRUE, sep = "\t", check.names = FALSE) %>%
+  rename("reads" = "readCount")
 
 # fill in missing rows
 df <- df %>%
@@ -39,22 +39,25 @@ df <- df %>%
     names_to = "jitter",
     values_to = "count")
 
-df$jitter <- as.character(gsub("count", "j", df$jitter))
-df$rate <- pmax(df$count / df$readCount * 100, 0.001)
+df$jitter <- as.character(gsub("count", "", df$jitter))
+df$rate <- pmax(df$count / df$reads * 100, 0.001)
 
 df$rate <- replace(df$rate, is.na(df$rate), 0)
 
 # make sure we have a row for read count for every unit, numUnits pair
 df <- df %>%
   group_by(unit, numUnits) %>%
-  summarise(jitter="readCount", rate=first(readCount)) %>%
+  summarise(jitter="reads", rate=first(reads), .groups = 'keep') %>%
   rbind(df)
 
 # need to give it the sorting of the jitter values
-#df$jitter <- factor(df$jitter, levels=c(sprintf("j%+d", c(-10:10)), "readCount"))
+df$jitter <- factor(df$jitter, levels=c(sprintf("%+d", c(-10:10)), "reads"))
 
 units <- c("A/T", "C/G", "AT/TA", "AG/GA/CT/TC", "AC/CA/GT/TG", "CG/GC", "3bp repeat", "4bp repeat", "5bp repeat")
 #units <- head(units, 1)
+
+msStatsHeatmap <- paste0(outDir, sampleId, '.ms_stats.png')
+png(file = msStatsHeatmap, res = 140, height = 2200, width = 4000)
 
 # Create a list to store individual plots
 plot_list <- list()
@@ -65,16 +68,14 @@ for (msUnit in units) {
     filter(unit == msUnit, numUnits %in% 4:20) %>%
     select(-c(unit))
   
-  jitter_df$jitter <- factor(jitter_df$jitter, levels=c(sprintf("j%+d", c(-10:10)), "readCount"))
-  
   if(FALSE) {
     # to fix: https://stackoverflow.com/questions/23478497/ggplot2-y-axis-order-changes-after-subsetting
   # Create a plot for each unit
   p <- ggplot(jitter_df, aes(x = jitter, y = reorder(numUnits, desc(numUnits)))) +
-    geom_tile(aes(fill = rate), color = "white", subset(jitter_df, jitter != "readCount" & readCount > 0)) +
+    geom_tile(aes(fill = rate), color = "white", subset(jitter_df, jitter != "reads" & reads > 0)) +
     scale_fill_gradient(low = "white", high = "deepskyblue", trans = "log", limits=c(0.001,100), guide="none") +
-    geom_text(aes(label = sprintf("%.2f", rate)), size=3, subset(jitter_df, jitter != "readCount" & readCount > 0)) +
-    geom_text(aes(label = format(rate, big.mark=",", scientific=FALSE)), size=3, subset(jitter_df, jitter == "readCount")) +
+    geom_text(aes(label = sprintf("%.2f", rate)), size=3, subset(jitter_df, jitter != "reads" & reads > 0)) +
+    geom_text(aes(label = format(rate, big.mark=",", scientific=FALSE)), size=3, subset(jitter_df, jitter == "reads")) +
     theme_minimal() +
     labs(title = paste("unit =", msUnit), x="jitter", y="num units")
   }
@@ -83,8 +84,8 @@ for (msUnit in units) {
   p <- ggplot(jitter_df, aes(x = jitter, y = reorder(numUnits, desc(numUnits)))) +
     geom_tile(aes(fill = rate), color = "white") +
     scale_fill_gradient(low = "white", high = "deepskyblue", trans = "log", limits=c(0.001,100), guide="none") +
-    geom_text(aes(label = sprintf("%.2f", rate)), size=3, subset(jitter_df, jitter != "readCount" & readCount > 0)) +
-    geom_text(aes(label = format(rate, big.mark=",", scientific=FALSE)), size=3, subset(jitter_df, jitter == "readCount")) +
+    geom_text(aes(label = sprintf("%.2f", rate)), size=3, subset(jitter_df, jitter != "reads" & reads > 0)) +
+    geom_text(aes(label = format(rate, big.mark=",", scientific=FALSE)), size=3, subset(jitter_df, jitter == "reads")) +
     theme_minimal() +
     labs(title = paste("unit =", msUnit), x="jitter", y="num units")
 
@@ -95,3 +96,4 @@ for (msUnit in units) {
 
 # Arrange the plots in a 3x3 grid
 gridExtra::grid.arrange(grobs = plot_list, ncol = 3, nrow = 3)
+dev.off()
