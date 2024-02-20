@@ -56,34 +56,34 @@ public class MicrosatelliteStatsTableFile
 				row.set(UNIT,  msStatsTableRow.getRepeatUnit());
 				row.set(NUM_UNITS,  msStatsTableRow.refNumUnits);
 				row.set(READ_COUNT,  msStatsTableRow.totalReadCount);
-				row.set(COUNT_p0, msStatsTableRow.getRepeatDiffReadCount(0));
+				row.set(COUNT_p0, msStatsTableRow.getJitterReadCount(0));
 
-				row.set(COUNT_p10, msStatsTableRow.getRepeatDiffReadCount(10));
-				row.set(COUNT_p9, msStatsTableRow.getRepeatDiffReadCount(9));
-				row.set(COUNT_p8, msStatsTableRow.getRepeatDiffReadCount(8));
-				row.set(COUNT_p7, msStatsTableRow.getRepeatDiffReadCount(7));
-				row.set(COUNT_p6, msStatsTableRow.getRepeatDiffReadCount(6));
-				row.set(COUNT_p5, msStatsTableRow.getRepeatDiffReadCount(5));
-				row.set(COUNT_p4, msStatsTableRow.getRepeatDiffReadCount(4));
-				row.set(COUNT_p3, msStatsTableRow.getRepeatDiffReadCount(3));
-				row.set(COUNT_p2, msStatsTableRow.getRepeatDiffReadCount(2));
-				row.set(COUNT_p1, msStatsTableRow.getRepeatDiffReadCount(1));
+				row.set(COUNT_p10, msStatsTableRow.getJitterReadCount(10));
+				row.set(COUNT_p9, msStatsTableRow.getJitterReadCount(9));
+				row.set(COUNT_p8, msStatsTableRow.getJitterReadCount(8));
+				row.set(COUNT_p7, msStatsTableRow.getJitterReadCount(7));
+				row.set(COUNT_p6, msStatsTableRow.getJitterReadCount(6));
+				row.set(COUNT_p5, msStatsTableRow.getJitterReadCount(5));
+				row.set(COUNT_p4, msStatsTableRow.getJitterReadCount(4));
+				row.set(COUNT_p3, msStatsTableRow.getJitterReadCount(3));
+				row.set(COUNT_p2, msStatsTableRow.getJitterReadCount(2));
+				row.set(COUNT_p1, msStatsTableRow.getJitterReadCount(1));
 
-				row.set(COUNT_m10, msStatsTableRow.getRepeatDiffReadCount(-10));
-				row.set(COUNT_m9, msStatsTableRow.getRepeatDiffReadCount(-9));
-				row.set(COUNT_m8, msStatsTableRow.getRepeatDiffReadCount(-8));
-				row.set(COUNT_m7, msStatsTableRow.getRepeatDiffReadCount(-7));
-				row.set(COUNT_m6, msStatsTableRow.getRepeatDiffReadCount(-6));
-				row.set(COUNT_m5, msStatsTableRow.getRepeatDiffReadCount(-5));
-				row.set(COUNT_m4, msStatsTableRow.getRepeatDiffReadCount(-4));
-				row.set(COUNT_m3, msStatsTableRow.getRepeatDiffReadCount(-3));
-				row.set(COUNT_m2, msStatsTableRow.getRepeatDiffReadCount(-2));
-				row.set(COUNT_m1, msStatsTableRow.getRepeatDiffReadCount(-1));
+				row.set(COUNT_m10, msStatsTableRow.getJitterReadCount(-10));
+				row.set(COUNT_m9, msStatsTableRow.getJitterReadCount(-9));
+				row.set(COUNT_m8, msStatsTableRow.getJitterReadCount(-8));
+				row.set(COUNT_m7, msStatsTableRow.getJitterReadCount(-7));
+				row.set(COUNT_m6, msStatsTableRow.getJitterReadCount(-6));
+				row.set(COUNT_m5, msStatsTableRow.getJitterReadCount(-5));
+				row.set(COUNT_m4, msStatsTableRow.getJitterReadCount(-4));
+				row.set(COUNT_m3, msStatsTableRow.getJitterReadCount(-3));
+				row.set(COUNT_m2, msStatsTableRow.getJitterReadCount(-2));
+				row.set(COUNT_m1, msStatsTableRow.getJitterReadCount(-1));
 			}))
 		{
 			for(MicrosatelliteStatsTable table : msStatsTables)
 			{
-				for(MicrosatelliteStatsTable.Row row : table.rows.values())
+				for(MicrosatelliteStatsTable.Row row : table.getRows())
 				{
 					if(row.refNumUnits <= MAX_UNITS)
 					{

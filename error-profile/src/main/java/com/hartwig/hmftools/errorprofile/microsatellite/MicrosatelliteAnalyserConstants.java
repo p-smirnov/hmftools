@@ -7,7 +7,7 @@ public class MicrosatelliteAnalyserConstants
     public static final int MAX_MICROSAT_UNIT_LENGTH = 5;
     public static final int MIN_MICROSAT_UNIT_COUNT = 4;
 
-    public static final int MIN_ADJACENT_MICROSAT_DISTANCE = 3;
+    public static final int MIN_ADJACENT_MICROSAT_DISTANCE = 5;
 
     public static final double ALT_COUNT_FRACTION_INIT = 0.3;
 

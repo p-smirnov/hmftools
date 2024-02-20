@@ -20,18 +20,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Random;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import com.google.common.collect.ArrayListMultimap;
 import com.hartwig.hmftools.common.genome.chromosome.HumanChromosome;
 import com.hartwig.hmftools.common.genome.refgenome.RefGenomeVersion;
 import com.hartwig.hmftools.common.utils.config.ConfigBuilder;
 
-import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang3.mutable.MutableInt;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -310,44 +306,6 @@ public class RefGenomeMicrosatellitesFinder
         return refGenomeMicrosatellites;
     }
 
-    // filter the microsatellites such that each type of (unit, length) is approximately the target count
-    static List<RefGenomeMicrosatellite> filterMicrosatellites(List<RefGenomeMicrosatellite> inputList, int targetCountPerType)
-    {
-        sLogger.info("filtering {} microsatellite sites, target count per type = {}", inputList.size(), targetCountPerType);
-
-        // first put them all into a multimap
-        ArrayListMultimap<Pair<String, Integer>, RefGenomeMicrosatellite> unitLengthMicrosatelliteMap = ArrayListMultimap.create();
-
-        // should be able to use a groupby method in guava
-        for(RefGenomeMicrosatellite microsatellite : inputList)
-        {
-            Pair<String, Integer> k = Pair.of(microsatellite.unitString(), microsatellite.numRepeat);
-            unitLengthMicrosatelliteMap.put(k, microsatellite);
-        }
-
-        // use same seed for now
-        Random random = new Random(0);
-        List<RefGenomeMicrosatellite> filteredList = new ArrayList<>();
-
-        for(Pair<String, Integer> msType : unitLengthMicrosatelliteMap.keySet())
-        {
-            List<RefGenomeMicrosatellite> l = unitLengthMicrosatelliteMap.get(msType);
-            double frac = ((double)targetCountPerType) / l.size();
-            if(frac < 1.0)
-            {
-                l.stream().filter(o -> random.nextDouble() <= frac).forEach(filteredList::add);
-            }
-            else
-            {
-                filteredList.addAll(l);
-            }
-        }
-
-        sLogger.info("filtered {} microsatellite sites down to {}", inputList.size(), filteredList.size());
-
-        return filteredList;
-    }
-
     private static class Config
     {
         public final String refGenomeFile;
@@ -355,7 +313,7 @@ public class RefGenomeMicrosatellitesFinder
 
         public final RefGenomeVersion refGenomeVersion;
 
-        public Config(final ConfigBuilder configBuilder) throws ParseException
+        public Config(final ConfigBuilder configBuilder)
         {
             refGenomeFile = configBuilder.getValue(REF_GENOME);
             outputDir = parseOutputDir(configBuilder);
@@ -409,155 +367,4 @@ public class RefGenomeMicrosatellitesFinder
 
         System.exit(0);
     }
-
-
-        /*
-    // algorithm to find short tandem repeats
-    // at each base, we try find longest candidate starting from this base.
-    // if a microsatellite is found, we start again from the base after.
-    //
-    static void findHomopolymer(ReferenceSequenceFile referenceSequenceFile, int minNumRepeats,
-            Consumer<RefGenomeMicrosatellite> refGenomeMsConsumer, int chunkSize)
-    {
-        int numMicrosatellites = 0;
-
-        for(SAMSequenceRecord sequenceRecord : referenceSequenceFile.getSequenceDictionary().getSequences())
-        {
-            if(!HumanChromosome.contains(sequenceRecord.getContig()))
-            {
-                continue;
-            }
-
-            int length = sequenceRecord.getSequenceLength();
-
-            for(int start = 1; start <= length; start = start + chunkSize)
-            {
-                int endInclusive = Math.min(start + chunkSize, length) - 1;
-                byte[] seq = referenceSequenceFile.getSubsequenceAt(sequenceRecord.getContig(), start, endInclusive).getBases();
-
-                for(int i = 0; i < seq.length; )
-                {
-                    if(seq[i] == N)
-                    {
-                        ++i;
-                        continue;
-                    }
-
-                    // we test all candidates from this location, and choose the longest one at the end
-
-                    // candidates
-                    List<Candidate> candidates = new ArrayList<>();
-
-                    // first step find all the candidates
-                    // j is the base after pattern end
-                    for(int j = i + 1; j < Math.min(i + MAX_MICROSAT_UNIT_LENGTH, seq.length); ++j)
-                    {
-                        int patternLength = j - i;
-
-                        // test that this pattern does not contain N
-                        if(seq[j] == N)
-                        {
-                            // we cannot have a pattern with N, so we can stop here
-                            break;
-                        }
-
-                        // we want to weed out any cases where it is just a repeat of previous patterns,
-                        // i.e. ATAT is just the same as AT
-                        boolean isDuplicate = false;
-                        for(Candidate c : candidates)
-                        {
-                            int x = patternLength / c.pattern.length;
-
-                            if(x * c.pattern.length != patternLength)
-                            {
-                                // first the length must be divisible
-                                continue;
-                            }
-
-                            // now test that the pattern is the same one
-                            boolean isSame = true;
-                            for(int k = 0; k < patternLength; ++k)
-                            {
-                                if(c.pattern[k % c.pattern.length] != seq[i + k])
-                                {
-                                    isSame = false;
-                                    break;
-                                }
-                            }
-
-                            if(isSame)
-                            {
-                                isDuplicate = true;
-                                break;
-                            }
-                        }
-
-                        if(!isDuplicate)
-                        {
-                            byte[] pattern = Arrays.copyOfRange(seq, i, j);
-                            Candidate c = new Candidate(pattern);
-                            candidates.add(c);
-                        }
-                    }
-
-                    Candidate candidate = null;
-                    int candidateEnd = -1;
-
-                    // we got all the candidates, now try to extend them as far as we can
-                    for(int j = i; j < seq.length; ++j)
-                    {
-                        byte base = seq[j];
-
-                        // check all current candidates
-                        ListIterator<Candidate> itr = candidates.listIterator();
-                        while(itr.hasNext())
-                        {
-                            Candidate c = itr.next();
-
-                            // check if pattern is still valid
-                            if(c.nextBase() != base)
-                            {
-                                if(candidates.size() == 1)
-                                {
-                                    // this is last remaining one, i.e. this is the pattern
-                                    candidate = c;
-                                    candidateEnd = j;
-                                }
-                                itr.remove();
-                            }
-                        }
-                    }
-
-                    if(candidate != null)
-                    {
-                        int unitRepeatCount = (candidateEnd - i) / candidate.pattern.length;
-
-                        if(unitRepeatCount >= minNumRepeats)
-                        {
-                            // this is a microsatellite
-                            RefGenomeMicrosatellite refGenomeMicrosatellite = new RefGenomeMicrosatellite(sequenceRecord.getContig(),
-                                    start + i,
-                                    start + candidateEnd - 1,
-                                    candidate.pattern,
-                                    unitRepeatCount);
-                            ++numMicrosatellites;
-                            refGenomeMsConsumer.accept(refGenomeMicrosatellite);
-                            i = candidateEnd;
-
-                            sLogger.trace("microsatellite: {}", refGenomeMicrosatellite);
-
-                            continue;
-                        }
-                    }
-                    // just move to next base
-                    ++i;
-                }
-            }
-
-            sLogger.info("finished chromosome {}", sequenceRecord.getSequenceName());
-        }
-
-        sLogger.info("found {} microsatellite regions in ref genome", numMicrosatellites);
-    }
-     */
 }

@@ -3,9 +3,9 @@ package com.hartwig.hmftools.errorprofile.microsatellite;
 import static java.time.format.DateTimeFormatter.ISO_ZONED_DATE_TIME;
 
 import static com.hartwig.hmftools.common.utils.config.ConfigUtils.setLogLevel;
+import static com.hartwig.hmftools.errorprofile.microsatellite.RefGenomeMicrosatellite.filterMicrosatellites;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -19,7 +19,6 @@ import java.util.stream.Collectors;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.hartwig.hmftools.common.utils.config.ConfigBuilder;
-import com.hartwig.hmftools.common.utils.pcf.PCFFile;
 import com.hartwig.hmftools.common.utils.r.RExecutor;
 import com.hartwig.hmftools.common.utils.version.VersionInfo;
 import com.hartwig.hmftools.errorprofile.ErrorProfileConfig;
@@ -65,8 +64,9 @@ public class MicrosatelliteAnalyserApp
         sLogger.info("loaded {} microsatellites regions", refGenomeMicrosatellites.size());
 
         filterSpecificRegions(refGenomeMicrosatellites);
+        refGenomeMicrosatellites = filterMicrosatellites(refGenomeMicrosatellites, mConfig.MaxSitesPerType);
 
-        SampleBamProcessor sampleBamProcessor = new SampleBamProcessor(refGenomeMicrosatellites, mConfig.SamplingFraction);
+        SampleBamProcessor sampleBamProcessor = new SampleBamProcessor(refGenomeMicrosatellites, mConfig.MaxSitesPerType);
 
         final ThreadFactory namedThreadFactory = new ThreadFactoryBuilder().setNameFormat("worker-%d").build();
         ExecutorService executorService = Executors.newFixedThreadPool(mConfig.Threads, namedThreadFactory);
@@ -75,13 +75,18 @@ public class MicrosatelliteAnalyserApp
 
         // now write out all the repeat stats
         MicrosatelliteSiteFile.write(MicrosatelliteSiteFile.generateFilename(mConfig.OutputDir, mConfig.SampleId),
-                sampleBamProcessor.getRepeatAnalysers());
+                sampleBamProcessor.getMicrosatelliteSiteAnalysers());
 
         final String statsTableFile = MicrosatelliteStatsTableFile.generateFilename(mConfig.OutputDir, mConfig.SampleId);
-        writeMicrosatelliteStatsTable(sampleBamProcessor.getRepeatAnalysers(), statsTableFile);
+        writeMicrosatelliteStatsTable(sampleBamProcessor.getMicrosatelliteSiteAnalysers(), statsTableFile);
 
         // draw a chart of the 9 ms profiles
         drawMicrosatelliteCharts(mConfig.OutputDir, mConfig.SampleId, statsTableFile);
+
+        // now perform the fitting
+        List<JitterModelParams> jitterModelParamsList = fitJitterModels(sampleBamProcessor.getMicrosatelliteSiteAnalysers());
+
+        JitterModelParamsFile.write(JitterModelParamsFile.generateFilename(mConfig.OutputDir, mConfig.SampleId), jitterModelParamsList);
 
         Instant finish = Instant.now();
         long seconds = Duration.between(start, finish).getSeconds();
@@ -97,7 +102,7 @@ public class MicrosatelliteAnalyserApp
 
         List<MicrosatelliteStatsTable> msStatsTables = new ArrayList<>();
 
-        for(MicrosatelliteSelector s : createMicrosatelliteSelectors())
+        for(MicrosatelliteSelector s : createMicrosatelliteSelectorsForCharts())
         {
             MicrosatelliteStatsTable msStatsTable = new MicrosatelliteStatsTable(s.unitName());
             msStatsTable.summarise(microsatelliteSiteAnalysers.stream().filter(s::select).collect(Collectors.toList()));
@@ -107,22 +112,51 @@ public class MicrosatelliteAnalyserApp
         MicrosatelliteStatsTableFile.write(filename, msStatsTables);
     }
 
-    private static List<MicrosatelliteSelector> createMicrosatelliteSelectors()
+    private static List<MicrosatelliteSelector> createMicrosatelliteSelectorsForCharts()
     {
         // create nine summary / pivot table
         // {A/T, C/G, AT/TA, AG/GA/CT/TC, AC/CA/GT/TG, CG/GC, any 3 base, any 4 base, any 5 base}
         List<MicrosatelliteSelector> selectors = new ArrayList<>();
-        selectors.add(new MicrosatelliteSelector(List.of("A", "T"), null));
-        selectors.add(new MicrosatelliteSelector(List.of("C", "G"), null));
-        selectors.add(new MicrosatelliteSelector(List.of("AT", "TA"), null));
-        selectors.add(new MicrosatelliteSelector(List.of("AG", "GA", "CT", "TC"), null));
-        selectors.add(new MicrosatelliteSelector(List.of("AC", "CA", "GT", "TG"), null));
-        selectors.add(new MicrosatelliteSelector(List.of("CG", "GC"), null));
-        selectors.add(new MicrosatelliteSelector(null, 3));
-        selectors.add(new MicrosatelliteSelector(null, 4));
-        selectors.add(new MicrosatelliteSelector(null, 5));
+        selectors.add(MicrosatelliteSelector.fromUnits(List.of("A", "T")));
+        selectors.add(MicrosatelliteSelector.fromUnits(List.of("C", "G")));
+        selectors.add(MicrosatelliteSelector.fromUnits(List.of("AT", "TA")));
+        selectors.add(MicrosatelliteSelector.fromUnits(List.of("AG", "GA", "CT", "TC")));
+        selectors.add(MicrosatelliteSelector.fromUnits(List.of("AC", "CA", "GT", "TG")));
+        selectors.add(MicrosatelliteSelector.fromUnits(List.of("CG", "GC")));
+        selectors.add(MicrosatelliteSelector.fromUnitLength(3));
+        selectors.add(MicrosatelliteSelector.fromUnitLength(4));
+        selectors.add(MicrosatelliteSelector.fromUnitLength(5));
+        //selectors.add(MicrosatelliteSelector.fromUnitLengthRange(3, 5));
 
         return selectors;
+    }
+
+    private static List<JitterModelParams> fitJitterModels(
+            @NotNull final Collection<MicrosatelliteSiteAnalyser> microsatelliteSiteAnalysers)
+    {
+        // create nine summary / pivot table
+        // {A/T, C/G, AT/TA, AG/GA/CT/TC, AC/CA/GT/TG, CG/GC, any 3 base, any 4 base, any 5 base}
+        List<MicrosatelliteSelector> selectors = new ArrayList<>();
+        selectors.add(MicrosatelliteSelector.fromUnits(List.of("A", "T")));
+        selectors.add(MicrosatelliteSelector.fromUnits(List.of("C", "G")));
+        selectors.add(MicrosatelliteSelector.fromUnits(List.of("AT", "TA")));
+        selectors.add(MicrosatelliteSelector.fromUnits(List.of("AG", "GA", "CT", "TC")));
+        selectors.add(MicrosatelliteSelector.fromUnits(List.of("AC", "CA", "GT", "TG")));
+        selectors.add(MicrosatelliteSelector.fromUnits(List.of("CG", "GC")));
+        selectors.add(MicrosatelliteSelector.fromUnitLengthRange(3, 5));
+
+        List<JitterModelParams> fittedParams = new ArrayList<>();
+
+        for(MicrosatelliteSelector selector : selectors)
+        {
+            MicrosatelliteStatsTable msStatsTable = new MicrosatelliteStatsTable(selector.unitName());
+            msStatsTable.summarise(microsatelliteSiteAnalysers.stream().filter(selector::select).collect(Collectors.toList()));
+            JitterModelFitter fitter = new JitterModelFitter(msStatsTable);
+            fitter.performFit();
+            fittedParams.add(fitter.getJitterModelParams());
+        }
+
+        return fittedParams;
     }
 
     private void filterSpecificRegions(List<RefGenomeMicrosatellite> refGenomeMicrosatellites)

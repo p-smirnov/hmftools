@@ -36,7 +36,7 @@ public class MicrosatelliteAnalyserConfig
 
     public final int MinMappingQuality;
 
-    public final double SamplingFraction;
+    public final int MaxSitesPerType;
 
     public final ValidationStringency BamStringency;
     public final int Threads;
@@ -45,8 +45,9 @@ public class MicrosatelliteAnalyserConfig
 
     private static final String REF_GENOME_MICROSATELLITES = "ref_genome_microsatellites";
     private static final String MIN_MAP_QUALITY = "min_map_quality";
-    private static final String SAMPLING_FRAC = "sampling_frac";
+    private static final String MAX_SITES_PER_TYPE = "max_sites_per_type";
     public static final int DEFAULT_MIN_MAPPING_QUALITY = 50;
+    public static final int DEFAULT_NUM_SITES_PER_TYPE = 5000;
 
     public MicrosatelliteAnalyserConfig(final ConfigBuilder configBuilder) throws ParseException
     {
@@ -57,7 +58,7 @@ public class MicrosatelliteAnalyserConfig
         OutputDir = parseOutputDir(configBuilder);
         Threads = parseThreads(configBuilder);
         MinMappingQuality = configBuilder.getInteger(MIN_MAP_QUALITY);
-        SamplingFraction = configBuilder.getDecimal(SAMPLING_FRAC);
+        MaxSitesPerType = configBuilder.getInteger(MAX_SITES_PER_TYPE);
         BamStringency = BamUtils.validationStringency(configBuilder);
         SpecificRegions = loadSpecificRegions(configBuilder.getValue(SPECIFIC_REGIONS));
     }
@@ -77,7 +78,7 @@ public class MicrosatelliteAnalyserConfig
         configBuilder.addInteger(
                 MIN_MAP_QUALITY, "Minimum mapping quality for an alignment to be used", DEFAULT_MIN_MAPPING_QUALITY);
 
-        configBuilder.addDecimal(SAMPLING_FRAC, "fractions of read to sample", 1.0);
+        configBuilder.addInteger(MAX_SITES_PER_TYPE, "max number of sites per microsatellite unit / length type", DEFAULT_NUM_SITES_PER_TYPE);
 
         addThreadOptions(configBuilder);
         addValidationStringencyOption(configBuilder);

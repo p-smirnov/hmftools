@@ -37,9 +37,9 @@ public class SampleBamProcessor
     private final List<RefGenomeMicrosatellite> mRefGenomeMicrosatellites;
 
     // for speed reasons we need to consolidate the chr base regions into bigger chunks
-    private final Multimap<ChrBaseRegion, MicrosatelliteSiteAnalyser> mRepeatAnalysers = ArrayListMultimap.create();
+    private final Multimap<ChrBaseRegion, MicrosatelliteSiteAnalyser> mMicrosatelliteSiteAnalysers = ArrayListMultimap.create();
 
-    public Collection<MicrosatelliteSiteAnalyser> getRepeatAnalysers() { return mRepeatAnalysers.values(); }
+    public Collection<MicrosatelliteSiteAnalyser> getMicrosatelliteSiteAnalysers() { return mMicrosatelliteSiteAnalysers.values(); }
 
     public SampleBamProcessor(List<RefGenomeMicrosatellite> refGenomeMicrosatellites, double samplingFraction)
     {
@@ -52,7 +52,7 @@ public class SampleBamProcessor
     {
         final int PARTITION_SIZE = 1_000_000;
 
-        mRepeatAnalysers.clear();
+        mMicrosatelliteSiteAnalysers.clear();
 
         ImmutableListMultimap<String, RefGenomeMicrosatellite> chromosomeRepeats = Multimaps.index(mRefGenomeMicrosatellites, RefGenomeMicrosatellite::chromosome);
 
@@ -71,7 +71,7 @@ public class SampleBamProcessor
                 {
                     if(currentRegion != null)
                     {
-                        mRepeatAnalysers.putAll(currentRegion, regionAnalysers);
+                        mMicrosatelliteSiteAnalysers.putAll(currentRegion, regionAnalysers);
                     }
 
                     currentRegion = refGenomeMicrosatellite.genomeRegion.clone();
@@ -84,7 +84,7 @@ public class SampleBamProcessor
             // final one
             if(currentRegion != null)
             {
-                mRepeatAnalysers.putAll(currentRegion, regionAnalysers);
+                mMicrosatelliteSiteAnalysers.putAll(currentRegion, regionAnalysers);
             }
         }
     }
@@ -97,7 +97,7 @@ public class SampleBamProcessor
             readerFactory = readerFactory.referenceSource(new ReferenceSource(new File(config.RefGenomeFile)));
         }
 
-        Collection<ChrBaseRegion> partitions = mRepeatAnalysers.keySet().stream().sorted().collect(Collectors.toList());
+        Collection<ChrBaseRegion> partitions = mMicrosatelliteSiteAnalysers.keySet().stream().sorted().collect(Collectors.toList());
 
         BamSlicer bamSlicer = new BamSlicer(config.MinMappingQuality, false, false, false);
         CompletableFuture<Void> bamSliceTasks = bamSlicer.queryAsync(new File(config.BamPath), readerFactory, partitions,
@@ -120,7 +120,7 @@ public class SampleBamProcessor
             return;
         }
 
-        Collection<MicrosatelliteSiteAnalyser> microsatelliteSiteAnalysers = mRepeatAnalysers.get(baseRegion);
+        Collection<MicrosatelliteSiteAnalyser> microsatelliteSiteAnalysers = this.mMicrosatelliteSiteAnalysers.get(baseRegion);
 
         Validate.isTrue(!microsatelliteSiteAnalysers.isEmpty());
 

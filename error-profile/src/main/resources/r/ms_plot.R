@@ -68,18 +68,19 @@ for (msUnit in units) {
     filter(unit == msUnit, numUnits %in% 4:20) %>%
     select(-c(unit))
   
-  if(FALSE) {
+  if(TRUE) {
     # to fix: https://stackoverflow.com/questions/23478497/ggplot2-y-axis-order-changes-after-subsetting
   # Create a plot for each unit
   p <- ggplot(jitter_df, aes(x = jitter, y = reorder(numUnits, desc(numUnits)))) +
     geom_tile(aes(fill = rate), color = "white", subset(jitter_df, jitter != "reads" & reads > 0)) +
+    geom_tile(aes(fill = 10), color = "grey5", subset(jitter_df, jitter == "reads")) +
     scale_fill_gradient(low = "white", high = "deepskyblue", trans = "log", limits=c(0.001,100), guide="none") +
     geom_text(aes(label = sprintf("%.2f", rate)), size=3, subset(jitter_df, jitter != "reads" & reads > 0)) +
     geom_text(aes(label = format(rate, big.mark=",", scientific=FALSE)), size=3, subset(jitter_df, jitter == "reads")) +
     theme_minimal() +
     labs(title = paste("unit =", msUnit), x="jitter", y="num units")
   }
-  
+  else {
   # Create a plot for each unit
   p <- ggplot(jitter_df, aes(x = jitter, y = reorder(numUnits, desc(numUnits)))) +
     geom_tile(aes(fill = rate), color = "white") +
@@ -88,7 +89,7 @@ for (msUnit in units) {
     geom_text(aes(label = format(rate, big.mark=",", scientific=FALSE)), size=3, subset(jitter_df, jitter == "reads")) +
     theme_minimal() +
     labs(title = paste("unit =", msUnit), x="jitter", y="num units")
-
+  }
   
   # Add the plot to the list
   plot_list[[msUnit]] <- p

@@ -86,7 +86,8 @@ public class MicrosatelliteSiteAnalyser
             int repeatDiff = entry.getIntKey();
             int readCount = entry.getIntValue();
 
-            double countCutoff = (altCountFractionInit + (Math.abs(repeatDiff) - 1) * altCountFractionCutoffStep) * getPassingReadRepeatMatches().size();
+            double fractionCutoff = Math.max(altCountFractionInit + (Math.abs(repeatDiff) - 1) * altCountFractionCutoffStep, 0.1);
+            double countCutoff = fractionCutoff * getPassingReadRepeatMatches().size();
             if(Doubles.greaterThan(readCount, countCutoff))
             {
                 return true;
