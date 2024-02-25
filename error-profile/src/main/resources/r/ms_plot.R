@@ -68,7 +68,7 @@ for (msUnit in units) {
     filter(unit == msUnit, numUnits %in% 4:20) %>%
     select(-c(unit))
   
-  if(TRUE) {
+  if(FALSE) {
     # to fix: https://stackoverflow.com/questions/23478497/ggplot2-y-axis-order-changes-after-subsetting
   # Create a plot for each unit
   p <- ggplot(jitter_df, aes(x = jitter, y = reorder(numUnits, desc(numUnits)))) +

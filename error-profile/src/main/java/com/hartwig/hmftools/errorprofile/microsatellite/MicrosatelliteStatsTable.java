@@ -51,8 +51,10 @@ public class MicrosatelliteStatsTable
     {
         for(MicrosatelliteSiteAnalyser microsatelliteSiteAnalyser : microsatelliteSiteAnalysers)
         {
-            if(microsatelliteSiteAnalyser.isRealVariant(MicrosatelliteAnalyserConstants.ALT_COUNT_FRACTION_INIT, MicrosatelliteAnalyserConstants.ALT_COUNT_FRACTION_STEP,
-                    MicrosatelliteAnalyserConstants.MAX_REJECTED_READ_FRACTION))
+            if(!microsatelliteSiteAnalyser.shouldKeepSite(MicrosatelliteAnalyserConstants.ALT_COUNT_FRACTION_INIT,
+                    MicrosatelliteAnalyserConstants.ALT_COUNT_FRACTION_STEP,
+                    MicrosatelliteAnalyserConstants.MAX_REJECTED_READ_FRACTION,
+                    MicrosatelliteAnalyserConstants.MS_SITE_MIN_READS))
             {
                 continue;
             }

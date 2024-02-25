@@ -14,4 +14,6 @@ public class MicrosatelliteAnalyserConstants
     public static final double ALT_COUNT_FRACTION_STEP = -0.05;
 
     public static final double MAX_REJECTED_READ_FRACTION = 0.2;
+
+    public static final int MS_SITE_MIN_READS = 0;
 }

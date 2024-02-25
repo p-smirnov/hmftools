@@ -66,7 +66,7 @@ public class MicrosatelliteAnalyserApp
         filterSpecificRegions(refGenomeMicrosatellites);
         refGenomeMicrosatellites = filterMicrosatellites(refGenomeMicrosatellites, mConfig.MaxSitesPerType);
 
-        SampleBamProcessor sampleBamProcessor = new SampleBamProcessor(refGenomeMicrosatellites, mConfig.MaxSitesPerType);
+        SampleBamProcessor sampleBamProcessor = new SampleBamProcessor(refGenomeMicrosatellites);
 
         final ThreadFactory namedThreadFactory = new ThreadFactoryBuilder().setNameFormat("worker-%d").build();
         ExecutorService executorService = Executors.newFixedThreadPool(mConfig.Threads, namedThreadFactory);

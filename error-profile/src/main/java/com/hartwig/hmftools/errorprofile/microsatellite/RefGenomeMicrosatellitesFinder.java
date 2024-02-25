@@ -1,5 +1,8 @@
 package com.hartwig.hmftools.errorprofile.microsatellite;
 
+import static com.hartwig.hmftools.common.genome.gc.GCProfileFactory.GC_PROFILE;
+import static com.hartwig.hmftools.common.genome.gc.GCProfileFactory.GC_PROFILE_DESC;
+import static com.hartwig.hmftools.common.genome.gc.GCProfileFactory.loadChrGcProfileMap;
 import static com.hartwig.hmftools.common.genome.refgenome.RefGenomeSource.REF_GENOME;
 import static com.hartwig.hmftools.common.genome.refgenome.RefGenomeSource.REF_GENOME_CFG_DESC;
 import static com.hartwig.hmftools.common.genome.refgenome.RefGenomeSource.addRefGenomeVersion;
@@ -18,15 +21,21 @@ import static htsjdk.samtools.util.SequenceUtil.N;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import com.hartwig.hmftools.common.genome.chromosome.HumanChromosome;
+import com.hartwig.hmftools.common.genome.gc.GCProfile;
+import com.hartwig.hmftools.common.genome.gc.ImmutableGCProfile;
 import com.hartwig.hmftools.common.genome.refgenome.RefGenomeVersion;
 import com.hartwig.hmftools.common.utils.config.ConfigBuilder;
 
+import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -313,17 +322,21 @@ public class RefGenomeMicrosatellitesFinder
 
         public final RefGenomeVersion refGenomeVersion;
 
+        public final String GcProfilePath;
+
         public Config(final ConfigBuilder configBuilder)
         {
             refGenomeFile = configBuilder.getValue(REF_GENOME);
             outputDir = parseOutputDir(configBuilder);
             refGenomeVersion = RefGenomeVersion.from(configBuilder);
+            GcProfilePath = configBuilder.getValue(GC_PROFILE);
         }
 
         public static void registerConfig(final ConfigBuilder configBuilder)
         {
             addRefGenomeVersion(configBuilder);
             configBuilder.addPath(REF_GENOME, true, REF_GENOME_CFG_DESC + ", required when using CRAM files");
+            configBuilder.addPath(GC_PROFILE, true, GC_PROFILE_DESC);
 
             addOutputDir(configBuilder);
 
@@ -341,14 +354,53 @@ public class RefGenomeMicrosatellitesFinder
 
     private static void findAndWriteRefGenomeMicrosatellites(Config config) throws Exception
     {
+        Map<String,List<GCProfile>> gcProfiles = loadChrGcProfileMap(config.GcProfilePath);
+
+        String outputFile = RefGenomeMicrosatelliteFile.generateFilename(config.outputDir, config.refGenomeVersion);
+
         // find all the polymers
         IndexedFastaSequenceFile refGenome = new IndexedFastaSequenceFile(new File(config.refGenomeFile));
-        try (RefGenomeMicrosatelliteFile refGenomeMicrosatelliteFile = new RefGenomeMicrosatelliteFile(
-                RefGenomeMicrosatelliteFile.generateFilename(config.outputDir, config.refGenomeVersion)))
+        try (RefGenomeMicrosatelliteFile refGenomeMicrosatelliteFile = new RefGenomeMicrosatelliteFile(outputFile))
         {
-            RefGenomeMicrosatellitesFinder.findMicrosatellites(refGenome, MIN_MICROSAT_UNIT_COUNT, refGenomeMicrosatelliteFile::writeRow);
+            RefGenomeMicrosatellitesFinder.findMicrosatellites(refGenome, MIN_MICROSAT_UNIT_COUNT,
+                    r -> {
+                            populateMappability(r, gcProfiles);
+                            refGenomeMicrosatelliteFile.writeRow(r);
+                    });
 
             //filterSpecificRegions(refGenomeMicrosatellites);
+        }
+
+        sLogger.info("output written to {}", outputFile);
+    }
+
+    private static void populateMappability(RefGenomeMicrosatellite refGenomeMicrosatellite, Map<String,List<GCProfile>> gcProfileMap)
+    {
+        // populate the mappability
+        List<GCProfile> gcProfiles = gcProfileMap.get(refGenomeMicrosatellite.chromosome());
+        int siteMid = refGenomeMicrosatellite.genomeRegion.start() + (refGenomeMicrosatellite.genomeRegion.baseLength()) / 2;
+
+        GCProfile endKey = ImmutableGCProfile.builder().from(gcProfiles.get(0)).end(siteMid).build();
+
+        // find the position using binary search
+        int index = Collections.binarySearch(gcProfiles, endKey, Comparator.comparingInt(GCProfile::end));
+
+        // we go backwards and forwards
+        if(index < 0)
+        {
+            index = -index - 1;
+        }
+
+        if(index < gcProfiles.size())
+        {
+            GCProfile gcProfile = gcProfiles.get(index);
+            Validate.isTrue(gcProfile.overlaps(refGenomeMicrosatellite.genomeRegion.genomeRegion()));
+            refGenomeMicrosatellite.mappability = gcProfile.mappablePercentage();
+        }
+        else
+        {
+            refGenomeMicrosatellite.mappability = 0.0;
+            sLogger.warn("microsatellite site: {} gc profile not found.", refGenomeMicrosatellite.genomeRegion);
         }
     }
 

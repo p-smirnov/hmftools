@@ -20,6 +20,7 @@ public class RefGenomeMicrosatellite
     public final ChrBaseRegion genomeRegion;
     public final byte[] unit;
     public final int numRepeat;
+    public double mappability = Double.NaN;
 
     public RefGenomeMicrosatellite(final ChrBaseRegion genomeRegion, final byte[] unit)
     {

@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -41,28 +40,27 @@ public class SampleBamProcessor
 
     public Collection<MicrosatelliteSiteAnalyser> getMicrosatelliteSiteAnalysers() { return mMicrosatelliteSiteAnalysers.values(); }
 
-    public SampleBamProcessor(List<RefGenomeMicrosatellite> refGenomeMicrosatellites, double samplingFraction)
+    public SampleBamProcessor(List<RefGenomeMicrosatellite> refGenomeMicrosatellites)
     {
-        Random random = new Random(0);
-        mRefGenomeMicrosatellites = refGenomeMicrosatellites.stream().filter(o -> random.nextDouble() <= samplingFraction).collect(Collectors.toList());
-        partitionGenomeRepeats();
+        mRefGenomeMicrosatellites = refGenomeMicrosatellites;
+        partitionGenome();
     }
 
-    private void partitionGenomeRepeats()
+    private void partitionGenome()
     {
-        final int PARTITION_SIZE = 1_000_000;
+        final int PARTITION_SIZE = 1_000;
 
         mMicrosatelliteSiteAnalysers.clear();
 
-        ImmutableListMultimap<String, RefGenomeMicrosatellite> chromosomeRepeats = Multimaps.index(mRefGenomeMicrosatellites, RefGenomeMicrosatellite::chromosome);
+        ImmutableListMultimap<String, RefGenomeMicrosatellite> chromosomeMsSites = Multimaps.index(mRefGenomeMicrosatellites, RefGenomeMicrosatellite::chromosome);
 
         List<MicrosatelliteSiteAnalyser> regionAnalysers = new ArrayList<>();
 
-        for(String chromosome : chromosomeRepeats.keySet())
+        for(String chromosome : chromosomeMsSites.keySet())
         {
             ChrBaseRegion currentRegion = null;
 
-            List<RefGenomeMicrosatellite> refGenomeMicrosatellites = new ArrayList<>(chromosomeRepeats.get(chromosome));
+            List<RefGenomeMicrosatellite> refGenomeMicrosatellites = new ArrayList<>(chromosomeMsSites.get(chromosome));
             refGenomeMicrosatellites.sort(Comparator.comparing(RefGenomeMicrosatellite::referenceStart));
 
             for(RefGenomeMicrosatellite refGenomeMicrosatellite : refGenomeMicrosatellites)
