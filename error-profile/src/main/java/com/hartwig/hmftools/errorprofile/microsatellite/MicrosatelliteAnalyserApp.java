@@ -104,8 +104,8 @@ public class MicrosatelliteAnalyserApp
 
         for(MicrosatelliteSelector s : createMicrosatelliteSelectorsForCharts())
         {
-            MicrosatelliteStatsTable msStatsTable = new MicrosatelliteStatsTable(s.unitName());
-            msStatsTable.summarise(microsatelliteSiteAnalysers.stream().filter(s::select).collect(Collectors.toList()));
+            MicrosatelliteStatsTable msStatsTable = MicrosatelliteStatsTable.summariseFrom(s.unitName(),
+                microsatelliteSiteAnalysers.stream().filter(s::select).collect(Collectors.toList()));
             msStatsTables.add(msStatsTable);
         }
 
@@ -149,8 +149,8 @@ public class MicrosatelliteAnalyserApp
 
         for(MicrosatelliteSelector selector : selectors)
         {
-            MicrosatelliteStatsTable msStatsTable = new MicrosatelliteStatsTable(selector.unitName());
-            msStatsTable.summarise(microsatelliteSiteAnalysers.stream().filter(selector::select).collect(Collectors.toList()));
+            MicrosatelliteStatsTable msStatsTable = MicrosatelliteStatsTable.summariseFrom(selector.unitName(),
+                microsatelliteSiteAnalysers.stream().filter(selector::select).collect(Collectors.toList()));
             JitterModelFitter fitter = new JitterModelFitter(msStatsTable);
             fitter.performFit();
             fittedParams.add(fitter.getJitterModelParams());

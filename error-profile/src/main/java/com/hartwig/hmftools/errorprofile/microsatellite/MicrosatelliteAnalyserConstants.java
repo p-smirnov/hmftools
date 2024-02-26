@@ -15,5 +15,7 @@ public class MicrosatelliteAnalyserConstants
 
     public static final double MAX_REJECTED_READ_FRACTION = 0.2;
 
+    public static final double MAX_SINGLE_SITE_ALT_CONTRIBUTION = 0.8;
+
     public static final int MS_SITE_MIN_READS = 0;
 }
