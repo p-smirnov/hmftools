@@ -140,6 +140,11 @@ public class PartitionSlicer
         if(!mRegion.containsPosition(readStart))
             return;
 
+        Integer alignmentScore = record.getIntegerAttribute("AS");
+        if(alignmentScore < 30)
+            return;
+
+
         ++mStats.TotalReads;
 
         if(mFilterRegion != null)

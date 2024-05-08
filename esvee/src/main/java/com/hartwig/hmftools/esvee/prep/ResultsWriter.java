@@ -191,7 +191,7 @@ public class ResultsWriter
                 }
 
                 mJunctionWriter.write(String.format("%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d",
-                        chromosome, junctionData.Position, junctionData.Orient, junctionData.junctionFragmentCount(),
+                        chromosome, junctionData.Position, junctionData.Orient.asInt(), junctionData.junctionFragmentCount(),
                         exactSupportFrags, otherSupportFrags, lowMapQualFrags, maxMapQual));
 
                 mJunctionWriter.write(String.format("\t%d\t%s\t%s\t%s\t%s",
@@ -213,7 +213,7 @@ public class ResultsWriter
                         {
                             RemoteJunction remoteJunction = junctionData.RemoteJunctions.get(i);
                             sj.add(String.format("%s:%d:%d:%d",
-                                    remoteJunction.Chromosome, remoteJunction.Position, remoteJunction.Orient, remoteJunction.Fragments));
+                                    remoteJunction.Chromosome, remoteJunction.Position, remoteJunction.Orient.asInt(), remoteJunction.Fragments));
                             // junctionData.RemoteJunctions.forEach(x -> sj.add(format("%s:%d:%d", x.Chromosome, x.Position, x.Orientation)));
                         }
                         remoteJunctionsStr = sj.toString();

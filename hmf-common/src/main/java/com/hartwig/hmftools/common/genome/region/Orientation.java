@@ -51,6 +51,8 @@ public enum Orientation
 
     public char asChar() { return this == FORWARD ? ORIENT_POS_CHAR : ORIENT_NEG_CHAR; }
 
+    public int asInt() { return this == FORWARD ? 1 : -1; }
+
     public Orientation opposite() { return opposite(this); }
     public static Orientation opposite(final Orientation orientation) { return orientation == FORWARD ? REVERSE : FORWARD; }
 
